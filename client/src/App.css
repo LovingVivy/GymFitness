@@ -1,0 +1,65 @@
+.page-shell {
+  min-height: 100vh;
+  background: #090909;
+}
+
+.page-transition-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  color: #090909;
+  background: #fff;
+  pointer-events: none;
+  transform: translate3d(0, 100%, 0);
+  will-change: transform;
+}
+
+.page-transition-layer.is-covering,
+.page-transition-layer.is-revealing {
+  transition: transform 0.65s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.page-transition-layer.is-covering {
+  transform: translate3d(0, 0, 0);
+}
+
+.page-transition-layer.is-revealing {
+  transform: translate3d(0, -100%, 0);
+}
+
+.page-transition-mark {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.055em;
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.page-transition-mark span {
+  color: #8daa20;
+}
+
+.is-covering .page-transition-mark {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.28s ease 0.25s, transform 0.4s ease 0.2s;
+}
+
+.is-revealing .page-transition-mark {
+  opacity: 0;
+  transform: translateY(-12px);
+  transition: opacity 0.2s ease, transform 0.3s ease;
+}
+
+body.is-page-transitioning {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition-layer.is-covering,
+  .page-transition-layer.is-revealing {
+    transition-duration: 1ms;
+  }
+}
