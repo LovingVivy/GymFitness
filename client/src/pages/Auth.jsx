@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import CurtainFooter from "../components/CurtainFooter";
 import "./Auth.css";
 
 const coverImages = {
@@ -202,9 +203,13 @@ export default function Auth({ mode }) {
         </div>
       </section>
 
+      <CurtainFooter />
+
       <div className={`auth-toast ${toast ? "is-visible" : ""}`} aria-live="polite">
         <span className="auth-toast-dot" /> {toast}
       </div>
     </main>
   );
 }
+
+

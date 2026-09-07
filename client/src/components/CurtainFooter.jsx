@@ -9,7 +9,9 @@ const defaultColumns = [
   {
     title: "Khám phá",
     links: [
-      { label: "Gói tập", href: "/#products" },
+      { label: "Home", href: "/" },
+      { label: "Sản phẩm", href: "/products" },
+      { label: "Gói tập", href: "/plans" },
       { label: "Tính năng", href: "/#philosophy" },
       { label: "Kiến thức", href: "/#cleanJournal" }
     ]
@@ -17,9 +19,9 @@ const defaultColumns = [
   {
     title: "Hỗ trợ",
     links: [
-      { label: "Liên hệ", href: "#home" },
-      { label: "Điều khoản", href: "#home" },
-      { label: "Bảo mật", href: "#home" }
+      { label: "Liên hệ", href: "/#home" },
+      { label: "Điều khoản", href: "/#home" },
+      { label: "Bảo mật", href: "/#home" }
     ]
   },
   {
@@ -153,3 +155,4 @@ export default function CurtainFooter({
     </section>
   );
 }
+

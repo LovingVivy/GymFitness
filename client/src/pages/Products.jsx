@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
+import CurtainFooter from "../components/CurtainFooter";
 import "./Products.css";
 
 const products = [
@@ -131,8 +132,10 @@ export default function Products() {
         <div><article><span>01</span><h3>Đổi trả 14 ngày</h3><p>Đổi kích cỡ miễn phí với sản phẩm còn nguyên tem.</p></article><article><span>02</span><h3>Chọn lọc kỹ</h3><p>Sản phẩm được huấn luyện viên IRONIX kiểm tra thực tế.</p></article><article><span>03</span><h3>Ưu đãi hội viên</h3><p>Giảm thêm 10% khi mua tại quầy cho hội viên đang hoạt động.</p></article></div>
       </section>
 
-      <footer className="shop-footer"><a className="brand gym-brand" href="/"><span>IRON</span>IX</a><p>Train hard. Live strong.</p><a href="/plans">Khám phá gói tập →</a></footer>
+      <CurtainFooter />
       <div className={`cart-toast ${notice ? "is-visible" : ""}`} role="status">{notice}<span>✓</span></div>
     </main>
   );
 }
+
+

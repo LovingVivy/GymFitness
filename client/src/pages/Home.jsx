@@ -1454,6 +1454,8 @@ export default function Home() {
           {
             title: "Khám phá",
             links: [
+              { label: "Home", href: "/" },
+              { label: "Sản phẩm", href: "/products" },
               { label: "Gói tập", href: "/plans" },
               { label: "Tính năng", href: "#philosophy" },
               { label: "Kiến thức", href: "#cleanJournal" }
@@ -1480,3 +1482,4 @@ export default function Home() {
     </main>
   );
 }
+

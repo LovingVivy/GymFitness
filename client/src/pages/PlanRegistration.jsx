@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
+import CurtainFooter from "../components/CurtainFooter";
 import "./PlanRegistration.css";
 
 const plans = {
@@ -295,7 +296,11 @@ export default function PlanRegistration() {
         </aside>
       </form>
 
+      <CurtainFooter />
+
       <div className={`plan-toast ${toast ? "is-visible" : ""}`} aria-live="polite">{toast}</div>
     </main>
   );
 }
+
+
