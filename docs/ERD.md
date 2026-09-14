@@ -4,7 +4,7 @@
 
 Database dùng MySQL 8.0+ và phục vụ ba vai trò `ADMIN`, `USER`, `PT`. Thiết kế bao phủ đăng nhập, hồ sơ, gói Gym/Yoga, thanh toán QR, lịch tập, check-in QR, lịch PT, lượt PT trả phí, lớp học, cửa hàng, thiết bị, thông báo và audit log.
 
-DDL bảng nằm tại [`database/schema.sql`](../database/schema.sql) và trigger kiểm tra lịch nằm tại [`database/triggers.sql`](../database/triggers.sql).
+DDL bảng nằm tại [`database/01_tables.sql`](../database/01_tables.sql) và trigger kiểm tra lịch nằm tại [`database/02_triggers.sql`](../database/02_triggers.sql).
 
 ## 2. Sơ đồ quan hệ tổng quan
 

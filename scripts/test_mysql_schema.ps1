@@ -62,27 +62,27 @@ try {
     throw "Temporary MySQL did not become ready"
   }
 
-  & $mysql @connection --execute="CREATE DATABASE gymfitness_schema_test CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+  & $mysql @connection --execute="CREATE DATABASE gymfitness CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
   if ($LASTEXITCODE -ne 0) { throw "Could not create test database" }
 
-  Get-Content -Raw (Join-Path $projectRoot "database\schema.sql") |
-    & $mysql @connection gymfitness_schema_test
+  Get-Content -Raw (Join-Path $projectRoot "database\01_tables.sql") |
+    & $mysql @connection gymfitness
   if ($LASTEXITCODE -ne 0) { throw "schema.sql failed" }
 
-  Get-Content -Raw (Join-Path $projectRoot "database\triggers.sql") |
-    & $mysql @connection gymfitness_schema_test
+  Get-Content -Raw (Join-Path $projectRoot "database\02_triggers.sql") |
+    & $mysql @connection gymfitness
   if ($LASTEXITCODE -ne 0) { throw "triggers.sql failed" }
 
   & $mysql @connection --batch --skip-column-names --execute="
     SELECT CONCAT('tables=', COUNT(*))
     FROM information_schema.tables
-    WHERE table_schema = 'gymfitness_schema_test';
+    WHERE table_schema = 'gymfitness';
     SELECT CONCAT('triggers=', COUNT(*))
     FROM information_schema.triggers
-    WHERE trigger_schema = 'gymfitness_schema_test';
+    WHERE trigger_schema = 'gymfitness';
     SELECT CONCAT('foreign_keys=', COUNT(*))
     FROM information_schema.referential_constraints
-    WHERE constraint_schema = 'gymfitness_schema_test';
+    WHERE constraint_schema = 'gymfitness';
   "
   if ($LASTEXITCODE -ne 0) { throw "Schema verification query failed" }
 }

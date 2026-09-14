@@ -2,6 +2,8 @@
 -- The service layer must also use transactions and SELECT ... FOR UPDATE
 -- because triggers alone do not replace concurrency control.
 
+USE gymfitness;
+
 DELIMITER $$
 
 
