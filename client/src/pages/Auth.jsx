@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import CurtainFooter from "../components/CurtainFooter";
+import { DEMO_CREDENTIALS, login, signup } from "../lib/authStore";
+import { navigateTo } from "../lib/navigation";
 import "./Auth.css";
 
 const coverImages = {
@@ -37,6 +39,7 @@ export default function Auth({ mode }) {
   const [forgotMode, setForgotMode] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
+  const formRef = useRef(null);
 
   useEffect(() => {
     setForgotMode(false);
@@ -51,26 +54,51 @@ export default function Auth({ mode }) {
     toastTimer.current = window.setTimeout(() => setToast(""), 2600);
   };
 
+  const fillDemoAccount = () => {
+    if (!formRef.current) return;
+    formRef.current.elements.email.value = DEMO_CREDENTIALS.email;
+    formRef.current.elements.password.value = DEMO_CREDENTIALS.password;
+    notify("Đã điền tài khoản hội viên demo.");
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
-
     if (!event.currentTarget.reportValidity()) return;
 
-    if (isSignup) {
-      const data = new FormData(event.currentTarget);
-      if (data.get("password") !== data.get("confirmPassword")) {
-        notify("Mật khẩu xác nhận chưa trùng khớp.");
-        return;
-      }
+    if (forgotMode) {
+      notify("Đã tạo yêu cầu đặt lại mật khẩu.");
+      return;
     }
 
-    notify(
-      forgotMode
-        ? "Đã tạo yêu cầu đặt lại mật khẩu."
-        : isSignup
-          ? "Đăng ký demo thành công."
-          : "Đăng nhập demo thành công."
-    );
+    const data = new FormData(event.currentTarget);
+    if (isSignup && data.get("password") !== data.get("confirmPassword")) {
+      notify("Mật khẩu xác nhận chưa trùng khớp.");
+      return;
+    }
+
+    try {
+      const authenticatedUser = isSignup
+        ? signup({
+            fullName: data.get("fullName"),
+            email: data.get("email"),
+            phone: data.get("phone"),
+            password: data.get("password")
+          })
+        : login(data.get("email"), data.get("password"));
+
+      if (!authenticatedUser) {
+        notify("Email hoặc mật khẩu chưa chính xác.");
+        return;
+      }
+
+      notify(isSignup ? "Đăng ký thành công. Hãy chọn gói tập." : "Đăng nhập thành công.");
+      const returnTo = localStorage.getItem("ironix_return_to");
+      localStorage.removeItem("ironix_return_to");
+      const destination = authenticatedUser.membership ? "/profile" : returnTo || "/plans";
+      window.setTimeout(() => navigateTo(destination), 650);
+    } catch (error) {
+      notify(error.message);
+    }
   };
 
   return (
@@ -134,10 +162,16 @@ export default function Auth({ mode }) {
                 <span>{isSignup ? "Đăng ký với Google" : "Đăng nhập với Google"}</span>
               </button>
               <div className="auth-divider"><span>hoặc tiếp tục với email</span></div>
+              {!isSignup && (
+                <button className="auth-demo" type="button" onClick={fillDemoAccount}>
+                  <span>Tài khoản hội viên demo</span>
+                  <strong>{DEMO_CREDENTIALS.email} · {DEMO_CREDENTIALS.password}</strong>
+                </button>
+              )}
             </>
           )}
 
-          <form className="auth-form" onSubmit={handleSubmit}>
+          <form className="auth-form" ref={formRef} onSubmit={handleSubmit}>
             {isSignup && !forgotMode && (
               <AuthField id="fullName" label="Họ và tên" autoComplete="name" />
             )}

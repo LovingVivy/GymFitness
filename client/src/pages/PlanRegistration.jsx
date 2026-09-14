@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import CurtainFooter from "../components/CurtainFooter";
+import { purchaseMembership, useAuth } from "../lib/authStore";
+import { navigateTo } from "../lib/navigation";
 import "./PlanRegistration.css";
 
 const plans = {
@@ -80,6 +82,7 @@ const yogaSchedule = [
 const formatCurrency = (value) => new Intl.NumberFormat("vi-VN").format(value) + "đ";
 
 export default function PlanRegistration() {
+  const user = useAuth();
   const [selectedPlan, setSelectedPlan] = useState("gymYearly");
   const [ptSessions, setPtSessions] = useState(0);
   const [goal, setGoal] = useState("fitness");
@@ -111,8 +114,41 @@ export default function PlanRegistration() {
 
   const submitRegistration = (event) => {
     event.preventDefault();
-    setToast("Đã ghi nhận đăng ký demo. Kết nối API để hoàn tất thanh toán.");
-    window.setTimeout(() => setToast(""), 3000);
+
+    if (!user) {
+      localStorage.setItem("ironix_return_to", "/plans");
+      navigateTo("/login");
+      return;
+    }
+
+    if (!event.currentTarget.reportValidity()) return;
+    const data = new FormData(event.currentTarget);
+    const experienceLabels = {
+      beginner: "Mới bắt đầu",
+      intermediate: "Đã tập 6–18 tháng",
+      advanced: "Trên 18 tháng"
+    };
+    const goalLabels = {
+      fitness: "Thể lực tổng quát",
+      strength: "Tăng cơ & sức mạnh",
+      fatloss: "Giảm mỡ"
+    };
+
+    purchaseMembership({
+      planKey: selectedPlan,
+      plan,
+      ptSessions,
+      profile: {
+        fullName: data.get("fullName"),
+        height: Number(height),
+        weight: Number(weight),
+        experience: experienceLabels[data.get("experience")],
+        weeklySessions: Number(data.get("weeklySessions")),
+        goal: goalLabels[goal]
+      }
+    });
+    setToast("Thanh toán demo thành công. Đang mở lịch tập...");
+    window.setTimeout(() => navigateTo("/schedule"), 850);
   };
 
   return (
@@ -196,12 +232,12 @@ export default function PlanRegistration() {
             </div>
 
             <div className="body-grid">
-              <label className="plan-field"><span>Họ và tên</span><input type="text" placeholder="Nguyễn Văn A" required /></label>
-              <label className="plan-field"><span>Tuổi</span><input type="number" min="16" max="90" placeholder="25" required /></label>
-              <label className="plan-field"><span>Chiều cao (cm)</span><input type="number" min="120" max="230" value={height} onChange={(event) => setHeight(event.target.value)} required /></label>
-              <label className="plan-field"><span>Cân nặng (kg)</span><input type="number" min="30" max="250" step="0.1" value={weight} onChange={(event) => setWeight(event.target.value)} required /></label>
-              <label className="plan-field"><span>Kinh nghiệm</span><select defaultValue="beginner"><option value="beginner">Mới bắt đầu</option><option value="intermediate">Đã tập 6–18 tháng</option><option value="advanced">Trên 18 tháng</option></select></label>
-              <label className="plan-field"><span>Số ngày có thể tập</span><select defaultValue="3"><option value="2">2 ngày / tuần</option><option value="3">3 ngày / tuần</option><option value="4">4 ngày / tuần</option><option value="5">5+ ngày / tuần</option></select></label>
+              <label className="plan-field"><span>Họ và tên</span><input name="fullName" type="text" defaultValue={user?.fullName || ""} placeholder="Nguyễn Văn A" required /></label>
+              <label className="plan-field"><span>Tuổi</span><input name="age" type="number" min="16" max="90" placeholder="25" required /></label>
+              <label className="plan-field"><span>Chiều cao (cm)</span><input name="height" type="number" min="120" max="230" value={height} onChange={(event) => setHeight(event.target.value)} required /></label>
+              <label className="plan-field"><span>Cân nặng (kg)</span><input name="weight" type="number" min="30" max="250" step="0.1" value={weight} onChange={(event) => setWeight(event.target.value)} required /></label>
+              <label className="plan-field"><span>Kinh nghiệm</span><select name="experience" defaultValue="beginner"><option value="beginner">Mới bắt đầu</option><option value="intermediate">Đã tập 6–18 tháng</option><option value="advanced">Trên 18 tháng</option></select></label>
+              <label className="plan-field"><span>Số ngày có thể tập</span><select name="weeklySessions" defaultValue="3"><option value="2">2 ngày / tuần</option><option value="3">3 ngày / tuần</option><option value="4">4 ngày / tuần</option><option value="5">5+ ngày / tuần</option></select></label>
             </div>
 
             <div className="goal-selector">
@@ -290,7 +326,7 @@ export default function PlanRegistration() {
           <div className="order-line"><span>Gói PT ({ptSessions} buổi)</span><strong>{formatCurrency(ptTotal)}</strong></div>
           {plan.originalPrice && <div className="order-saving"><span>Ưu đãi gói năm</span><strong>−30%</strong></div>}
           <div className="order-total"><span>Tổng thanh toán</span><strong>{formatCurrency(total)}</strong></div>
-          <button className="order-submit" type="submit"><span>Tiếp tục thanh toán</span><b>→</b></button>
+          <button className="order-submit" type="submit"><span>{user ? "Thanh toán & mở lịch" : "Đăng nhập để tiếp tục"}</span><b>→</b></button>
           <p className="order-note">Bạn có thể kiểm tra lại thông tin trước khi thanh toán. Chưa có khoản phí nào được thu ở bước này.</p>
           <div className="order-security"><span>✓</span><p><strong>Thanh toán an toàn</strong>Dữ liệu giao dịch được bảo vệ và ghi nhận minh bạch.</p></div>
         </aside>
