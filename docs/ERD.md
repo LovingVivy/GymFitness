@@ -2,9 +2,9 @@
 
 ## 1. Phạm vi
 
-Database dùng PostgreSQL 16 và phục vụ ba vai trò `ADMIN`, `USER`, `PT`. Thiết kế bao phủ đăng nhập, hồ sơ, gói Gym/Yoga, thanh toán QR, lịch tập, check-in QR, lịch PT, lượt PT trả phí, lớp học, cửa hàng, thiết bị, thông báo và audit log.
+Database dùng MySQL 8.0+ và phục vụ ba vai trò `ADMIN`, `USER`, `PT`. Thiết kế bao phủ đăng nhập, hồ sơ, gói Gym/Yoga, thanh toán QR, lịch tập, check-in QR, lịch PT, lượt PT trả phí, lớp học, cửa hàng, thiết bị, thông báo và audit log.
 
-DDL đầy đủ nằm tại [`database/schema.sql`](../database/schema.sql).
+DDL bảng nằm tại [`database/schema.sql`](../database/schema.sql) và trigger kiểm tra lịch nằm tại [`database/triggers.sql`](../database/triggers.sql).
 
 ## 2. Sơ đồ quan hệ tổng quan
 
@@ -159,7 +159,7 @@ Mỗi thay đổi đồng thời cập nhật account và chèn một dòng `pt_
 
 - Một booking tương ứng một buổi và một lượt PT.
 - Trạng thái `REJECTED` bắt buộc có `rejection_reason`.
-- PostgreSQL exclusion constraint ngăn PT hoặc member có hai booking `REQUESTED/ACCEPTED` chồng giờ.
+- Trigger MySQL chặn PT hoặc member có hai booking `REQUESTED/ACCEPTED` chồng giờ; service vẫn khóa dữ liệu trong transaction để xử lý request đồng thời.
 - Yêu cầu hết `response_due_at` được worker chuyển thành `EXPIRED` và hoàn lượt đang giữ.
 - Chỉ lịch `AVAILABLE`, subscription còn hiệu lực và đúng `activity_type` mới được đặt.
 
@@ -218,6 +218,6 @@ Các luồng payment, kích hoạt subscription, giữ lượt PT, booking, wait
 7. Class, room và class booking.
 8. Product, inventory, cart và order.
 9. Invoice, equipment, notification, job và audit.
-10. Index, exclusion constraint và trigger.
+10. Index, trigger chống trùng lịch và quy tắc transaction.
 
 Khi triển khai backend, `schema.sql` được chuyển thành các migration Alembic nhỏ theo thứ tự trên; không chạy một migration duy nhất trong production.

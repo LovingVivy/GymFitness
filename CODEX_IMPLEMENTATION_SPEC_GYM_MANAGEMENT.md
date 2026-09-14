@@ -72,7 +72,7 @@ Nếu repository hiện tại chưa khóa công nghệ, dùng:
 - SQLAlchemy 2.x
 - Alembic
 - Pydantic v2
-- PostgreSQL 16
+- MySQL 8.0+
 
 **Async / Cache**
 - Redis
@@ -109,7 +109,7 @@ Frontend (React)
    |
    v
 REST API (FastAPI)
-   |---- PostgreSQL
+   |---- MySQL
    |---- Redis cache
    |---- Redis/Celery broker
    |---- Private file storage
@@ -615,8 +615,8 @@ Giới hạn `page_size`, đề xuất max 100.
 - `action`
 - `entity_type`
 - `entity_id`
-- `before_data` JSONB nullable
-- `after_data` JSONB nullable
+- `before_data` JSON nullable
+- `after_data` JSON nullable
 - `ip_address`
 - `user_agent`
 - `created_at`
@@ -1127,7 +1127,7 @@ Seed phải:
 ```text
 frontend
 backend
-postgres
+mysql
 redis
 worker
 beat
@@ -1141,7 +1141,7 @@ nginx
 
 Yêu cầu:
 - `.env.example`
-- persistent volume cho PostgreSQL
+- persistent volume cho MySQL
 - healthcheck
 - dependency startup hợp lý
 - one-command startup:
@@ -1176,8 +1176,8 @@ Không deploy nếu build/test chưa pass.
 ## 29. Backup / Restore
 
 Demo tối thiểu:
-- script backup PostgreSQL.
-- script restore PostgreSQL.
+- script backup MySQL.
+- script restore MySQL.
 - hướng dẫn trong `docs/DEPLOYMENT.md`.
 - test restore ít nhất một lần trước bàn giao.
 

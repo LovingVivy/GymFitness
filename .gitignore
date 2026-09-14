@@ -22,3 +22,6 @@ Thumbs.db
 *.temp
 coverage/
 .npm-cache/
+
+# Ephemeral MySQL schema validation
+.mysql-schema-test-*

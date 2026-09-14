@@ -1,10 +1,10 @@
 # ARCHITECTURE DECISIONS
 
-## ADR-001 — PostgreSQL 16 là database chính
+## ADR-001 — MySQL 8.0+ là database chính
 
 - **Trạng thái:** Accepted
-- **Quyết định:** Dùng PostgreSQL 16, UUID primary key và `TIMESTAMPTZ`.
-- **Lý do:** Cần transaction, JSONB, partial index và exclusion constraint cho lịch không chồng lấn.
+- **Quyết định:** Dùng MySQL 8.0+, `CHAR(36)` primary key do ứng dụng sinh và `DATETIME(6)` lưu UTC.
+- **Lý do:** Phù hợp lựa chọn công nghệ của dự án; InnoDB cung cấp transaction và foreign key, JSON lưu metadata linh hoạt.
 
 ## ADR-002 — Ba vai trò hệ thống
 
@@ -39,8 +39,8 @@
 ## ADR-007 — Ngăn lịch chồng lấn ở database
 
 - **Trạng thái:** Accepted
-- **Quyết định:** Dùng PostgreSQL `EXCLUDE USING gist` với khoảng thời gian dạng `[start, end)` cho availability, PT booking và class session.
-- **Lý do:** Validation phía ứng dụng không đủ an toàn khi có request đồng thời.
+- **Quyết định:** Dùng trigger MySQL để kiểm tra overlap và service transaction với `SELECT ... FOR UPDATE` cho availability, PT booking và class session.
+- **Lý do:** Trigger bảo vệ các lệnh ghi trực tiếp; row lock trong service xử lý an toàn các request đồng thời.
 
 ## ADR-008 — QR thanh toán tách QR check-in
 
