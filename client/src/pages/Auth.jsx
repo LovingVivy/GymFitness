@@ -237,9 +237,7 @@ export default function Auth({ mode }) {
         </div>
       </section>
 
-      <CurtainFooter />
-
-      <div className={`auth-toast ${toast ? "is-visible" : ""}`} aria-live="polite">
+<div className={`auth-toast ${toast ? "is-visible" : ""}`} aria-live="polite">
         <span className="auth-toast-dot" /> {toast}
       </div>
     </main>
