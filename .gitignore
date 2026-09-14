@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
+.venv/
+__pycache__/
+*.py[cod]
 
 # Build output
 dist/
@@ -21,6 +24,10 @@ Thumbs.db
 *.tmp
 *.temp
 coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
 .npm-cache/
 
 # Ephemeral MySQL schema validation

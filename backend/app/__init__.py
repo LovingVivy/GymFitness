@@ -1,0 +1,1 @@
+"""GymFitness backend application."""
