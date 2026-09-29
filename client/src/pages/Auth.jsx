@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import CurtainFooter from "../components/CurtainFooter";
-import { DEMO_CREDENTIALS, login, signup } from "../lib/authStore";
+import { login, signup } from "../lib/authStore";
 import { navigateTo } from "../lib/navigation";
 import "./Auth.css";
 
@@ -54,14 +54,7 @@ export default function Auth({ mode }) {
     toastTimer.current = window.setTimeout(() => setToast(""), 2600);
   };
 
-  const fillDemoAccount = () => {
-    if (!formRef.current) return;
-    formRef.current.elements.email.value = DEMO_CREDENTIALS.email;
-    formRef.current.elements.password.value = DEMO_CREDENTIALS.password;
-    notify("Đã điền tài khoản hội viên demo.");
-  };
-
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
 
@@ -78,23 +71,21 @@ export default function Auth({ mode }) {
 
     try {
       const authenticatedUser = isSignup
-        ? signup({
+        ? await signup({
             fullName: data.get("fullName"),
             email: data.get("email"),
             phone: data.get("phone"),
             password: data.get("password")
           })
-        : login(data.get("email"), data.get("password"));
-
-      if (!authenticatedUser) {
-        notify("Email hoặc mật khẩu chưa chính xác.");
-        return;
-      }
+        : await login(data.get("email"), data.get("password"));
 
       notify(isSignup ? "Đăng ký thành công. Hãy chọn gói tập." : "Đăng nhập thành công.");
       const returnTo = localStorage.getItem("ironix_return_to");
       localStorage.removeItem("ironix_return_to");
-      const destination = authenticatedUser.membership ? "/profile" : returnTo || "/plans";
+      // PT vào khu làm việc; trang Buổi dạy tự chuyển sang "Lịch của bạn" nếu chưa khai lịch.
+      const destination = authenticatedUser.role === "PT"
+        ? "/pt"
+        : authenticatedUser.membership ? "/profile" : returnTo || "/plans";
       window.setTimeout(() => navigateTo(destination), 650);
     } catch (error) {
       notify(error.message);
@@ -162,12 +153,6 @@ export default function Auth({ mode }) {
                 <span>{isSignup ? "Đăng ký với Google" : "Đăng nhập với Google"}</span>
               </button>
               <div className="auth-divider"><span>hoặc tiếp tục với email</span></div>
-              {!isSignup && (
-                <button className="auth-demo" type="button" onClick={fillDemoAccount}>
-                  <span>Tài khoản hội viên demo</span>
-                  <strong>{DEMO_CREDENTIALS.email} · {DEMO_CREDENTIALS.password}</strong>
-                </button>
-              )}
             </>
           )}
 

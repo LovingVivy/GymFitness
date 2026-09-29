@@ -10,6 +10,9 @@ engine = create_engine(
     settings.sqlalchemy_database_url,
     pool_pre_ping=True,
     pool_recycle=1800,
+    # Mọi kết nối của ứng dụng chạy ở UTC để CURRENT_TIMESTAMP của MySQL và
+    # UTC_TIMESTAMP() trong stored procedure ghi cùng một mốc thời gian.
+    connect_args={"init_command": "SET time_zone = '+00:00'"},
 )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 

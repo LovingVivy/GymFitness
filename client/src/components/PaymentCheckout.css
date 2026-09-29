@@ -1,0 +1,45 @@
+.pay-overlay{position:fixed;inset:0;z-index:1000;display:grid;padding:16px;place-items:center;background:rgba(0,0,0,.72);backdrop-filter:blur(10px);overflow-y:auto}
+.pay-card{width:min(760px,100%);padding:28px;color:var(--text);background:linear-gradient(145deg,#171717,#0f0f0f);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow)}
+.pay-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
+.pay-head p{margin:0 0 8px;color:var(--accent);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.pay-head h2{margin:0;font-size:24px;font-weight:600;letter-spacing:-.03em}
+.pay-close{width:36px;height:36px;flex:0 0 auto;color:#aaa;background:transparent;border:1px solid var(--line);border-radius:50%;font-size:20px;line-height:1;cursor:pointer}
+.pay-close:hover{color:var(--text);border-color:rgba(214,255,63,.45)}
+.pay-body{display:grid;grid-template-columns:260px 1fr;gap:26px;align-items:start}
+.pay-qr{position:relative;display:grid;aspect-ratio:1;place-items:center;padding:12px;background:#fff;border-radius:18px;overflow:hidden}
+.pay-qr img{display:block;width:100%;height:100%;object-fit:contain}
+.pay-qr-missing{display:grid;gap:8px;padding:10px;color:#333;font-size:12px;font-weight:700;text-align:center}
+.pay-qr-missing small{color:#777;font-size:10px;font-weight:400}
+.pay-qr-expired{position:absolute;inset:0;display:grid;place-items:center;color:#fff;background:rgba(9,9,9,.82);font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.pay-info{display:grid;gap:10px;min-width:0}
+.pay-amount{margin:0 0 6px;color:var(--accent);font-size:38px;font-weight:700;line-height:1;letter-spacing:-.04em}
+.pay-row{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:10px;padding:10px 12px;background:#131313;border:1px solid var(--line);border-radius:11px}
+.pay-row span{color:#777;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+.pay-row strong{min-width:0;font-size:13px;overflow-wrap:anywhere}
+.pay-row button{padding:6px 10px;color:#090909;background:var(--accent);border:0;border-radius:8px;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.pay-warning{margin:4px 0 0;color:#aaa;font-size:11px;line-height:1.6}
+.pay-warning b{color:var(--accent)}
+.pay-waiting{display:flex;align-items:center;gap:12px;padding:13px 14px;background:#181a10;border:1px solid rgba(214,255,63,.25);border-radius:12px}
+.pay-waiting p{margin:0;color:#ddd;font-size:12px;line-height:1.5}
+.pay-waiting b{color:var(--accent);font-variant-numeric:tabular-nums}
+.pay-waiting.is-expired{background:#1a1311;border-color:rgba(217,154,140,.35)}
+.pay-waiting.is-expired p{color:#d99a8c}
+.pay-spinner{width:18px;height:18px;flex:0 0 auto;border:2px solid rgba(214,255,63,.25);border-top-color:var(--accent);border-radius:50%;animation:pay-spin .8s linear infinite}
+.pay-loading{display:grid;min-height:220px;place-items:center;align-content:center;gap:14px;color:#aaa;font-size:12px}
+.pay-loading .pay-spinner{width:30px;height:30px}
+.pay-error{margin:0;color:#d99a8c;font-size:11px}
+.pay-simulate{min-height:42px;color:var(--accent);background:transparent;border:1px dashed rgba(214,255,63,.5);border-radius:11px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.pay-simulate:disabled{opacity:.6;cursor:wait}
+.pay-success{display:grid;min-height:240px;place-items:center;align-content:center;gap:10px;text-align:center}
+.pay-success h3{margin:0;font-size:26px;letter-spacing:-.03em}
+.pay-success p{margin:0;color:#aaa;font-size:12px}
+.pay-check{display:grid;width:64px;height:64px;place-items:center;color:#090909;background:var(--accent);border-radius:50%;font-size:30px;font-weight:900;animation:pay-pop .35s ease-out}
+@keyframes pay-spin{to{transform:rotate(360deg)}}
+@keyframes pay-pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+@media (max-width:680px){
+  .pay-card{padding:20px}
+  .pay-body{grid-template-columns:1fr}
+  .pay-qr{width:min(260px,100%);margin:0 auto}
+  .pay-row{grid-template-columns:80px 1fr auto}
+}
+@media (prefers-reduced-motion:reduce){.pay-spinner,.pay-check{animation:none}}

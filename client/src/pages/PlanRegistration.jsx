@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import CurtainFooter from "../components/CurtainFooter";
-import { purchaseMembership, useAuth } from "../lib/authStore";
+import PaymentCheckout from "../components/PaymentCheckout";
+import { createSubscription, listPlans, refreshProfile, updateProfile, useAuth } from "../lib/authStore";
 import { navigateTo } from "../lib/navigation";
 import "./PlanRegistration.css";
 
@@ -79,7 +80,29 @@ const yogaSchedule = [
   ["Cuối tuần", "Yin / phục hồi", "45–60 phút"]
 ];
 
+const PT_PRICE = 200000;
+
 const formatCurrency = (value) => new Intl.NumberFormat("vi-VN").format(value) + "đ";
+
+// Mã gói tương ứng trong database (xem database/04_seed.sql).
+const PLAN_CODES = {
+  gymMonthly: "GYM_MONTHLY",
+  gymYearly: "GYM_YEARLY",
+  yogaMonthly: "YOGA_MONTHLY",
+  yogaYearly: "YOGA_YEARLY"
+};
+
+const EXPERIENCE_CODES = {
+  beginner: "BEGINNER",
+  intermediate: "INTERMEDIATE",
+  advanced: "ADVANCED"
+};
+
+const GOAL_CODES = {
+  fitness: "GENERAL_HEALTH",
+  strength: "MUSCLE_GAIN",
+  fatloss: "WEIGHT_LOSS"
+};
 
 export default function PlanRegistration() {
   const user = useAuth();
@@ -91,6 +114,16 @@ export default function PlanRegistration() {
   const [height, setHeight] = useState(170);
   const [weight, setWeight] = useState(65);
   const [toast, setToast] = useState("");
+  const [catalogue, setCatalogue] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  // Cửa sổ thanh toán đang mở: { paymentId, title, step }. Gói + PT chung một mã QR.
+  const [checkout, setCheckout] = useState(null);
+
+  useEffect(() => {
+    listPlans()
+      .then(setCatalogue)
+      .catch(() => setToast("Không tải được danh sách gói tập."));
+  }, []);
 
   const bmi = useMemo(() => {
     const heightInMeters = Number(height) / 100;
@@ -108,11 +141,15 @@ export default function PlanRegistration() {
           ? "Trên khoảng tham khảo"
           : "Cần chú ý";
 
-  const plan = plans[selectedPlan];
-  const ptTotal = ptSessions * 200000;
+  // Giá thật lấy từ database; bảng tĩnh chỉ là giá dự phòng khi API chưa trả về.
+  const priceOf = (key) =>
+    Number(catalogue.find((item) => item.code === PLAN_CODES[key])?.price ?? plans[key].price);
+
+  const plan = { ...plans[selectedPlan], price: priceOf(selectedPlan) };
+  const ptTotal = ptSessions * PT_PRICE;
   const total = plan.price + ptTotal;
 
-  const submitRegistration = (event) => {
+  const submitRegistration = async (event) => {
     event.preventDefault();
 
     if (!user) {
@@ -122,33 +159,57 @@ export default function PlanRegistration() {
     }
 
     if (!event.currentTarget.reportValidity()) return;
-    const data = new FormData(event.currentTarget);
-    const experienceLabels = {
-      beginner: "Mới bắt đầu",
-      intermediate: "Đã tập 6–18 tháng",
-      advanced: "Trên 18 tháng"
-    };
-    const goalLabels = {
-      fitness: "Thể lực tổng quát",
-      strength: "Tăng cơ & sức mạnh",
-      fatloss: "Giảm mỡ"
-    };
 
-    purchaseMembership({
-      planKey: selectedPlan,
-      plan,
-      ptSessions,
-      profile: {
-        fullName: data.get("fullName"),
-        height: Number(height),
-        weight: Number(weight),
-        experience: experienceLabels[data.get("experience")],
-        weeklySessions: Number(data.get("weeklySessions")),
-        goal: goalLabels[goal]
-      }
-    });
-    setToast("Thanh toán demo thành công. Đang mở lịch tập...");
-    window.setTimeout(() => navigateTo("/schedule"), 850);
+    const planCode = PLAN_CODES[selectedPlan];
+    const plan = catalogue.find((item) => item.code === planCode);
+    if (!plan) {
+      setToast("Gói tập chưa sẵn sàng, vui lòng thử lại sau.");
+      return;
+    }
+
+    const data = new FormData(event.currentTarget);
+    setSubmitting(true);
+    try {
+      // Lưu chỉ số cơ thể vào hồ sơ thật trước khi kích hoạt gói.
+      await updateProfile({
+        full_name: data.get("fullName"),
+        date_of_birth: data.get("dateOfBirth") || null,
+        height_cm: Number(height),
+        weight_kg: Number(weight),
+        experience_level: EXPERIENCE_CODES[data.get("experience")] ?? "BEGINNER",
+        fitness_goal: GOAL_CODES[goal] ?? "GENERAL_HEALTH",
+        weekly_training_sessions: Number(data.get("weeklySessions"))
+      });
+
+      const created = await createSubscription(plan.id, ptSessions);
+      setCheckout({
+        paymentId: created.payment.id,
+        title: ptSessions > 0 ? `${plan.name} + ${ptSessions} buổi PT` : plan.name,
+        step: "Gói hội viên"
+      });
+    } catch (error) {
+      setToast(error.message || "Không thể hoàn tất đăng ký gói.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePaid = async () => {
+    setCheckout(null);
+    await refreshProfile().catch(() => null);
+    // Có lượt PT thì đưa thẳng sang chọn huấn luyện viên và giờ tập đầu tiên.
+    const next = ptSessions > 0 ? "/pt-booking" : "/profile";
+    setToast(
+      ptSessions > 0
+        ? "Thanh toán thành công. Chọn PT và giờ tập đầu tiên nhé!"
+        : "Thanh toán thành công. Đang mở hồ sơ hội viên..."
+    );
+    window.setTimeout(() => navigateTo(next), 850);
+  };
+
+  const handleCloseCheckout = () => {
+    setCheckout(null);
+    setToast("Giao dịch vẫn chờ thanh toán. Bạn có thể tạo lại mã QR bất cứ lúc nào.");
   };
 
   return (
@@ -175,9 +236,10 @@ export default function PlanRegistration() {
             <div className="membership-grid">
               {Object.entries(plans).map(([key, option]) => {
                 const isYearly = Boolean(option.originalPrice);
-                const shortPrice = option.price >= 1000000
-                  ? `${(option.price / 1000000).toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}M`
-                  : `${option.price / 1000}K`;
+                const price = priceOf(key);
+                const shortPrice = price >= 1000000
+                  ? `${(price / 1000000).toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}M`
+                  : `${price / 1000}K`;
 
                 return (
                   <label className={`membership-card ${isYearly ? "membership-card--featured" : ""} ${selectedPlan === key ? "is-selected" : ""}`} key={key}>
@@ -233,7 +295,7 @@ export default function PlanRegistration() {
 
             <div className="body-grid">
               <label className="plan-field"><span>Họ và tên</span><input name="fullName" type="text" defaultValue={user?.fullName || ""} placeholder="Nguyễn Văn A" required /></label>
-              <label className="plan-field"><span>Tuổi</span><input name="age" type="number" min="16" max="90" placeholder="25" required /></label>
+              <label className="plan-field"><span>Ngày sinh</span><input name="dateOfBirth" type="date" max={new Date().toISOString().slice(0, 10)} /></label>
               <label className="plan-field"><span>Chiều cao (cm)</span><input name="height" type="number" min="120" max="230" value={height} onChange={(event) => setHeight(event.target.value)} required /></label>
               <label className="plan-field"><span>Cân nặng (kg)</span><input name="weight" type="number" min="30" max="250" step="0.1" value={weight} onChange={(event) => setWeight(event.target.value)} required /></label>
               <label className="plan-field"><span>Kinh nghiệm</span><select name="experience" defaultValue="beginner"><option value="beginner">Mới bắt đầu</option><option value="intermediate">Đã tập 6–18 tháng</option><option value="advanced">Trên 18 tháng</option></select></label>
@@ -326,13 +388,33 @@ export default function PlanRegistration() {
           <div className="order-line"><span>Gói PT ({ptSessions} buổi)</span><strong>{formatCurrency(ptTotal)}</strong></div>
           {plan.originalPrice && <div className="order-saving"><span>Ưu đãi gói năm</span><strong>−30%</strong></div>}
           <div className="order-total"><span>Tổng thanh toán</span><strong>{formatCurrency(total)}</strong></div>
-          <button className="order-submit" type="submit"><span>{user ? "Thanh toán & mở lịch" : "Đăng nhập để tiếp tục"}</span><b>→</b></button>
-          <p className="order-note">Bạn có thể kiểm tra lại thông tin trước khi thanh toán. Chưa có khoản phí nào được thu ở bước này.</p>
+          <button className="order-submit" type="submit" disabled={submitting}>
+            <span>
+              {!user
+                ? "Đăng nhập để tiếp tục"
+                : submitting
+                  ? "Đang tạo mã QR…"
+                  : "Thanh toán bằng mã QR"}
+            </span>
+            <b>→</b>
+          </button>
+          <p className="order-note">Quét VietQR bằng app ngân hàng. Gói được kích hoạt tự động ngay khi ngân hàng xác nhận đã nhận tiền.</p>
           <div className="order-security"><span>✓</span><p><strong>Thanh toán an toàn</strong>Dữ liệu giao dịch được bảo vệ và ghi nhận minh bạch.</p></div>
         </aside>
       </form>
 
       <CurtainFooter />
+
+      {checkout ? (
+        <PaymentCheckout
+          key={checkout.paymentId}
+          paymentId={checkout.paymentId}
+          title={checkout.title}
+          step={checkout.step}
+          onPaid={handlePaid}
+          onClose={handleCloseCheckout}
+        />
+      ) : null}
 
       <div className={`plan-toast ${toast ? "is-visible" : ""}`} aria-live="polite">{toast}</div>
     </main>

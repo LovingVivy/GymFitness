@@ -1,14 +1,35 @@
 from contextlib import asynccontextmanager
+from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.db.session import engine
 
 settings = get_settings()
+
+
+def _serializable_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Make Pydantic error entries JSON-safe.
+
+    A ``field_validator`` that raises ``ValueError`` leaves the exception object
+    inside ``ctx``, which ``json.dumps`` cannot encode and would turn a 422 into
+    a 500.
+    """
+    safe: list[dict[str, Any]] = []
+    for error in errors:
+        item = {key: value for key, value in error.items() if key != "ctx"}
+        context = error.get("ctx")
+        if isinstance(context, dict):
+            item["ctx"] = {key: str(value) for key, value in context.items()}
+        safe.append(item)
+    return safe
 
 
 @asynccontextmanager
@@ -41,6 +62,42 @@ def create_app() -> FastAPI:
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response
+
+    @application.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        """Emit the documented error envelope: ``{"error": {...}}``.
+
+        Handlers that already raise ``{"error": {...}}`` as their detail keep
+        that shape at the top level; anything else falls back to ``detail``.
+        """
+        detail = exc.detail
+        if isinstance(detail, dict) and "error" in detail:
+            content: dict[str, Any] = detail
+        else:
+            content = {"detail": detail}
+        return JSONResponse(status_code=exc.status_code, content=content, headers=exc.headers)
+
+    @application.exception_handler(RequestValidationError)
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        messages = []
+        for error in exc.errors():
+            loc = [
+                str(part) for part in error.get("loc", []) if part not in ("body", "query", "path")
+            ]
+            field = ".".join(loc) or "request"
+            messages.append(f"{field}: {error.get('msg', 'invalid')}")
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "; ".join(messages),
+                    "details": _serializable_errors(exc.errors()),
+                }
+            },
+        )
 
     application.include_router(api_router)
     return application
