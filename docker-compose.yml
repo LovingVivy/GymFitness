@@ -13,6 +13,11 @@ services:
       - mysql_data:/var/lib/mysql
       - ./database/01_tables.sql:/docker-entrypoint-initdb.d/01_tables.sql:ro
       - ./database/02_triggers.sql:/docker-entrypoint-initdb.d/02_triggers.sql:ro
+      - ./database/03_procedures.sql:/docker-entrypoint-initdb.d/03_procedures.sql:ro
+      - ./database/04_seed.sql:/docker-entrypoint-initdb.d/04_seed.sql:ro
+      - ./database/05_procedures_pt.sql:/docker-entrypoint-initdb.d/05_procedures_pt.sql:ro
+      - ./database/06_procedures_payment.sql:/docker-entrypoint-initdb.d/06_procedures_payment.sql:ro
+      - ./database/07_pt_schedule.sql:/docker-entrypoint-initdb.d/07_pt_schedule.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
@@ -38,6 +43,13 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-gymfitness}
       REDIS_URL: redis://redis:6379/0
       FRONTEND_ORIGINS: '${FRONTEND_ORIGINS:-["http://localhost:5173"]}'
+      # Bắt buộc đặt trong .env gốc; backend từ chối secret yếu khi APP_ENV khác development.
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      PAYMENT_BANK_CODE: ${PAYMENT_BANK_CODE:-}
+      PAYMENT_ACCOUNT_NO: ${PAYMENT_ACCOUNT_NO:-}
+      PAYMENT_ACCOUNT_NAME: ${PAYMENT_ACCOUNT_NAME:-}
+      PAYMENT_CODE_PREFIX: ${PAYMENT_CODE_PREFIX:-IRX}
+      SEPAY_WEBHOOK_API_KEY: ${SEPAY_WEBHOOK_API_KEY:-}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:

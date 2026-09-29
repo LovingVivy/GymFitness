@@ -1,0 +1,125 @@
+"""Local private file storage.
+
+The spec calls for local private storage in development, behind an interface
+that can later be swapped for S3-compatible storage. Only metadata goes into
+``file_assets``; the bytes live on disk under ``settings.storage_root``.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from uuid import uuid4
+
+from app.core.config import get_settings
+
+ALLOWED_IMAGE_TYPES: dict[str, str] = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+
+MAX_AVATAR_BYTES = 2 * 1024 * 1024
+
+_SAFE_KEY = re.compile(r"^[A-Za-z0-9._/-]+$")
+
+
+@dataclass(frozen=True)
+class StoredFile:
+    storage_key: str
+    size_bytes: int
+    checksum_sha256: str
+    content_type: str
+
+
+def storage_root() -> Path:
+    """Absolute storage directory, created on first use."""
+    configured = Path(get_settings().storage_root)
+    if not configured.is_absolute():
+        # ``app/core/storage.py`` -> ``app/core`` -> ``app`` -> backend root.
+        configured = Path(__file__).resolve().parents[2] / configured
+    configured.mkdir(parents=True, exist_ok=True)
+    return configured
+
+
+def _resolve(storage_key: str) -> Path:
+    """Map a stored key to a path, refusing anything outside the root."""
+    if not _SAFE_KEY.match(storage_key) or ".." in storage_key:
+        raise ValueError("storage_key không hợp lệ")
+    root = storage_root()
+    path = (root / storage_key).resolve()
+    if not path.is_relative_to(root.resolve()):
+        raise ValueError("storage_key nằm ngoài thư mục lưu trữ")
+    return path
+
+
+def sniff_image_type(content: bytes) -> str | None:
+    """Detect the real image type from its magic bytes.
+
+    The content type in a data URL is chosen by the client, so it is never
+    trusted on its own: a file declared ``image/png`` must really be a PNG.
+    """
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if content.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if content[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def save_avatar(content: bytes, content_type: str) -> StoredFile:
+    """Persist avatar bytes and return the metadata to store in MySQL."""
+    declared = "image/jpeg" if content_type == "image/jpg" else content_type
+    if declared not in ALLOWED_IMAGE_TYPES:
+        raise ValueError("Định dạng ảnh không được hỗ trợ (chỉ nhận PNG, JPEG, WebP, GIF)")
+    if not content:
+        raise ValueError("Tệp ảnh rỗng")
+    if len(content) > MAX_AVATAR_BYTES:
+        raise ValueError("Ảnh cần nhỏ hơn 2MB")
+
+    # Lưu theo loại thật của nội dung, không theo nhãn client khai báo.
+    content_type = sniff_image_type(content)
+    if content_type is None:
+        raise ValueError("Nội dung tệp không phải ảnh PNG, JPEG, WebP hoặc GIF hợp lệ")
+
+    suffix = ALLOWED_IMAGE_TYPES[content_type]
+    storage_key = f"avatars/{uuid4().hex}{suffix}"
+    path = _resolve(storage_key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+
+    return StoredFile(
+        storage_key=storage_key,
+        size_bytes=len(content),
+        checksum_sha256=hashlib.sha256(content).hexdigest(),
+        content_type=content_type,
+    )
+
+
+def delete_file(storage_key: str | None) -> None:
+    """Best-effort removal of stored bytes (old avatar, failed upload)."""
+    if not storage_key:
+        return
+    try:
+        path = _resolve(storage_key)
+        path.unlink(missing_ok=True)
+    except (OSError, ValueError):
+        # File mồ côi không làm hỏng request; có thể dọn lại sau.
+        pass
+
+
+def read_file(storage_key: str) -> bytes | None:
+    """Read stored bytes, returning ``None`` when the file is missing."""
+    try:
+        path = _resolve(storage_key)
+    except ValueError:
+        return None
+    if not path.is_file():
+        return None
+    return path.read_bytes()

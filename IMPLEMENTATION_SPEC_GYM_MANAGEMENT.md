@@ -2,9 +2,12 @@
 
 **Phiên bản:** 1.0  
 **Ngày lập:** 07/09/2026  
-**Mục đích:** Tài liệu nguồn duy nhất để Codex triển khai hệ thống Quản lý trung tâm thể dục (Gym Management) theo Master Plan và bộ yêu cầu chất lượng/vận hành.
+**Mục đích:** Tài liệu nguồn duy nhất để triển khai hệ thống Quản lý trung tâm thể dục (Gym Management) theo Master Plan và bộ yêu cầu chất lượng/vận hành.
 
 ---
+cd "D:\Code VS\GymFitness\client"
+npm install
+npm run dev
 
 ## 1. Mục tiêu dự án
 

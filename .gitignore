@@ -32,3 +32,8 @@ htmlcov/
 
 # Ephemeral MySQL schema validation
 .mysql-schema-test-*
+
+# Local runtime data and tooling
+backend/storage/
+.tmp-pip/
+.claude/launch.json

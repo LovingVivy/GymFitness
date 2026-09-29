@@ -97,7 +97,8 @@ BEFORE INSERT ON pt_bookings
 FOR EACH ROW
 BEGIN
   IF NEW.status IN ('REQUESTED', 'ACCEPTED') THEN
-    IF NOT EXISTS (
+    -- Booking theo lịch tuần (07_pt_schedule.sql) không gắn availability_id.
+    IF NEW.availability_id IS NOT NULL AND NOT EXISTS (
       SELECT 1
       FROM trainer_availability AS a
       WHERE a.id = NEW.availability_id
@@ -144,7 +145,8 @@ BEFORE UPDATE ON pt_bookings
 FOR EACH ROW
 BEGIN
   IF NEW.status IN ('REQUESTED', 'ACCEPTED') AND NEW.deleted_at IS NULL THEN
-    IF NOT EXISTS (
+    -- Booking theo lịch tuần (07_pt_schedule.sql) không gắn availability_id.
+    IF NEW.availability_id IS NOT NULL AND NOT EXISTS (
       SELECT 1
       FROM trainer_availability AS a
       WHERE a.id = NEW.availability_id

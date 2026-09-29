@@ -1,58 +1,28 @@
 import { useEffect, useState } from "react";
+import { ApiError, request } from "./api";
 
 const SESSION_KEY = "ironix_demo_session";
-const USERS_KEY = "ironix_demo_users";
+const TOKEN_KEY = "ironix_token";
 const AUTH_EVENT = "ironix:auth-changed";
 
-export const DEMO_CREDENTIALS = {
-  email: "demo@ironix.vn",
-  password: "Demo@123"
+const EXPERIENCE_LABELS = {
+  BEGINNER: "Mới bắt đầu",
+  BASIC: "Cơ bản",
+  INTERMEDIATE: "Đã tập 6–18 tháng",
+  ADVANCED: "Trên 18 tháng"
 };
 
-const dateOnly = (date) => date.toISOString().slice(0, 10);
+const GOAL_LABELS = {
+  WEIGHT_LOSS: "Giảm mỡ",
+  MUSCLE_GAIN: "Tăng cơ & sức mạnh",
+  GENERAL_HEALTH: "Thể lực tổng quát",
+  FLEXIBILITY: "Tăng độ linh hoạt"
+};
 
-function createDemoUser() {
-  const start = new Date();
-  start.setDate(start.getDate() - 32);
-  const end = new Date(start);
-  end.setFullYear(end.getFullYear() + 1);
-
-  return {
-    id: "demo-user-001",
-    role: "USER",
-    fullName: "Nguyễn Minh Anh",
-    email: DEMO_CREDENTIALS.email,
-    phone: "090 123 4567",
-    avatar: "",
-    height: 172,
-    weight: 66,
-    experience: "Đã tập 6–18 tháng",
-    weeklySessions: 4,
-    goal: "Tăng cơ & sức mạnh",
-    membership: {
-      status: "ACTIVE",
-      planKey: "gymYearly",
-      name: "Gym theo năm",
-      category: "Gym",
-      period: "12 tháng",
-      startDate: dateOnly(start),
-      endDate: dateOnly(end),
-      price: 4200000
-    },
-    ptCredits: { purchased: 12, reserved: 1, used: 3, remaining: 8 }
-  };
-}
+const ACTIVITY_LABELS = { GYM: "Gym", YOGA: "Yoga" };
 
 function emitChange() {
   window.dispatchEvent(new CustomEvent(AUTH_EVENT));
-}
-
-function readUsers() {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-  } catch {
-    return [];
-  }
 }
 
 export function getCurrentUser() {
@@ -63,94 +33,162 @@ export function getCurrentUser() {
   }
 }
 
-export function login(email, password) {
-  const normalizedEmail = email.trim().toLowerCase();
-  let user = null;
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
 
-  if (normalizedEmail === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
-    user = createDemoUser();
-  } else {
-    const account = readUsers().find(
-      (item) => item.email === normalizedEmail && item.password === password
-    );
-    if (account) {
-      const { password: _password, ...safeAccount } = account;
-      user = safeAccount;
-    }
+function periodLabel(membership) {
+  if (membership.duration_months) {
+    return membership.duration_months === 12 ? "12 tháng" : `${membership.duration_months} tháng`;
   }
+  return membership.duration_days ? `${membership.duration_days} ngày` : "—";
+}
 
-  if (!user) return null;
+/**
+ * Map the API profile onto the shape the pages render.
+ *
+ * Everything here comes from the database; the client no longer invents
+ * membership or body data.
+ */
+function normalizeProfile(profile) {
+  const membership = profile.membership;
+
+  return {
+    id: profile.id,
+    role: profile.role,
+    email: profile.email,
+    fullName: profile.full_name ?? "",
+    phone: profile.phone ?? "",
+    avatarUrl: profile.avatar_url ?? "",
+    height: profile.height_cm,
+    weight: profile.weight_kg,
+    experienceCode: profile.experience_level,
+    experience: EXPERIENCE_LABELS[profile.experience_level] ?? null,
+    weeklySessions: profile.weekly_training_sessions,
+    goalCode: profile.fitness_goal,
+    goal: GOAL_LABELS[profile.fitness_goal] ?? null,
+    memberCode: profile.member_code,
+    homeBranch: profile.home_branch_name,
+    joinedAt: profile.member_joined_at,
+    createdAt: profile.created_at,
+    lastLoginAt: profile.last_login_at,
+    ptCredits: {
+      purchased: profile.pt_credits?.purchased ?? 0,
+      reserved: profile.pt_credits?.reserved ?? 0,
+      used: profile.pt_credits?.used ?? 0,
+      remaining: profile.pt_credits?.remaining ?? 0
+    },
+    membership: membership
+      ? {
+          status: membership.status,
+          planCode: membership.plan_code,
+          name: membership.plan_name,
+          activityType: membership.activity_type,
+          category: ACTIVITY_LABELS[membership.activity_type] ?? membership.activity_type,
+          period: periodLabel(membership),
+          price: membership.price,
+          currency: membership.currency,
+          startAt: membership.start_at,
+          endAt: membership.end_at,
+          daysRemaining: membership.days_remaining,
+          totalDays: membership.total_days
+        }
+      : null
+  };
+}
+
+function persistUser(user) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   emitChange();
   return user;
 }
 
-export function signup({ fullName, email, phone, password }) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const users = readUsers();
-  if (normalizedEmail === DEMO_CREDENTIALS.email || users.some((item) => item.email === normalizedEmail)) {
-    throw new Error("Email này đã được sử dụng.");
+function persistToken(token) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export async function refreshProfile() {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const profile = await request("/profile", { token });
+    return persistUser(normalizeProfile(profile));
+  } catch (error) {
+    // Chỉ đăng xuất khi token thực sự không còn hợp lệ.
+    if (error instanceof ApiError && error.status === 401) {
+      logout();
+      return null;
+    }
+    throw error;
   }
+}
 
-  const user = {
-    id: crypto.randomUUID(),
-    role: "USER",
-    fullName: fullName.trim(),
-    email: normalizedEmail,
-    phone: phone.trim(),
-    avatar: "",
-    height: null,
-    weight: null,
-    experience: "Mới bắt đầu",
-    weeklySessions: 3,
-    goal: "Thể lực tổng quát",
-    membership: null,
-    ptCredits: { purchased: 0, reserved: 0, used: 0, remaining: 0 }
-  };
+export async function login(email, password) {
+  const data = await request("/auth/login", {
+    method: "POST",
+    body: { email, password }
+  });
+  persistToken(data.access_token);
+  const profile = await refreshProfile();
+  return profile ?? persistUser(normalizeProfile(data.user));
+}
 
-  users.push({ ...user, password });
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  emitChange();
-  return user;
+export async function signup({ fullName, email, phone, password }) {
+  const data = await request("/auth/register", {
+    method: "POST",
+    body: { full_name: fullName, email, phone: phone || null, password }
+  });
+  persistToken(data.access_token);
+  const profile = await refreshProfile();
+  return profile ?? persistUser(normalizeProfile(data.user));
+}
+
+export async function updateProfile(patch) {
+  const profile = await request("/profile", {
+    method: "PATCH",
+    body: patch,
+    token: getToken()
+  });
+  return persistUser(normalizeProfile(profile));
+}
+
+export async function uploadAvatar(dataUrl) {
+  const profile = await request("/profile/avatar", {
+    method: "POST",
+    body: { image: dataUrl },
+    token: getToken()
+  });
+  return persistUser(normalizeProfile(profile));
+}
+
+export function listPlans() {
+  return request("/plans");
+}
+
+/**
+ * Đăng ký gói (kèm lượt PT nếu có): tạo subscription + một payment PENDING duy nhất.
+ *
+ * Gói được kích hoạt khi ngân hàng báo đã nhận tiền (webhook ở backend).
+ * Trang gọi hàm này sẽ mở PaymentCheckout với `payment.id` trả về và chờ.
+ */
+export function createSubscription(planId, ptSessions = 0) {
+  return request("/subscriptions", {
+    method: "POST",
+    body: { plan_id: planId, pt_sessions: ptSessions },
+    token: getToken()
+  });
 }
 
 export function updateCurrentUser(updates) {
   const current = getCurrentUser();
   if (!current) return null;
-  const updated = { ...current, ...updates };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
-  emitChange();
-  return updated;
-}
-
-export function purchaseMembership({ planKey, plan, ptSessions, profile }) {
-  const current = getCurrentUser();
-  if (!current) return null;
-
-  const start = new Date();
-  const end = new Date(start);
-  if (plan.period === "12 tháng") end.setFullYear(end.getFullYear() + 1);
-  else end.setMonth(end.getMonth() + 1);
-
-  return updateCurrentUser({
-    ...profile,
-    membership: {
-      status: "ACTIVE",
-      planKey,
-      name: plan.name,
-      category: plan.category,
-      period: plan.period,
-      startDate: dateOnly(start),
-      endDate: dateOnly(end),
-      price: plan.price
-    },
-    ptCredits: { purchased: ptSessions, reserved: 0, used: 0, remaining: ptSessions }
-  });
+  return persistUser({ ...current, ...updates });
 }
 
 export function logout() {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(TOKEN_KEY);
   emitChange();
 }
 
@@ -166,4 +204,18 @@ export function useAuth() {
     };
   }, []);
   return user;
+}
+
+export function useToken() {
+  const [token, setToken] = useState(getToken);
+  useEffect(() => {
+    const sync = () => setToken(getToken());
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return token;
 }

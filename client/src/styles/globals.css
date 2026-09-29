@@ -254,3 +254,275 @@ img {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Notification bell
+   --------------------------------------------------------------------------- */
+
+.notif {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.notif-trigger {
+  position: relative;
+}
+
+.notif-count {
+  position: absolute;
+  top: -3px;
+  right: -6px;
+  display: grid;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  place-items: center;
+  color: #090909;
+  background: var(--accent);
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.notif-panel {
+  position: absolute;
+  top: calc(100% + 16px);
+  right: 0;
+  z-index: 5000;
+  width: min(360px, calc(100vw - 32px));
+  max-height: 420px;
+  overflow-y: auto;
+  color: var(--text);
+  background: #131313;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  text-align: left;
+}
+
+.notif-panel > header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  padding: 15px 17px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #171717;
+  border-bottom: 1px solid var(--line);
+}
+
+.notif-panel > header strong {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.notif-panel > header button {
+  width: auto;
+  height: auto;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.notif-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notif-panel li + li {
+  border-top: 1px solid var(--line);
+}
+
+.notif-panel li button {
+  display: grid;
+  width: 100%;
+  height: auto;
+  gap: 6px;
+  padding: 14px 17px;
+  place-items: start;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notif-panel li button:hover {
+  background: #1b1b1b;
+}
+
+.notif-panel li.is-unread button {
+  background: rgba(214, 255, 63, 0.05);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.notif-panel li strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notif-panel li span {
+  color: #9a9a9a;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.notif-panel li small {
+  color: #666;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.notif-empty {
+  margin: 0;
+  padding: 26px 17px;
+  color: #888;
+  font-size: 11px;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------------------
+   Account menu (trượt xuống khi hover / focus)
+   --------------------------------------------------------------------------- */
+
+.account {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.account-menu {
+  position: absolute;
+  top: 100%;
+  right: -14px;
+  z-index: 5000;
+  display: grid;
+  width: 236px;
+  margin-top: 18px;
+  padding: 6px;
+  color: var(--text);
+  background: #131313;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition:
+    opacity 0.22s ease,
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0.22s;
+}
+
+/* Cầu nối trong suốt: di chuột từ icon xuống menu không bị mất hover. */
+.account-menu::before {
+  content: "";
+  position: absolute;
+  inset: -20px 0 auto;
+  height: 20px;
+}
+
+.account-menu.is-open,
+.account:focus-within .account-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.account-menu-head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding: 12px 13px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-menu-head strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu-head span {
+  overflow: hidden;
+  color: #8a8a8a;
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu-head small {
+  margin-top: 3px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.account-menu a,
+.account-menu button {
+  display: flex;
+  width: 100%;
+  height: auto;
+  min-height: 44px;
+  padding: 0 13px;
+  align-items: center;
+  gap: 11px;
+  color: #cfcfcf;
+  background: transparent;
+  border: 0;
+  border-radius: 11px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+
+.account-menu a:hover,
+.account-menu button:hover {
+  color: #090909;
+  background: var(--accent);
+}
+
+.account-menu svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.account-menu .account-logout {
+  margin-top: 5px;
+  color: #d98b7c;
+  border-top: 1px solid var(--line);
+}
+
+.account-menu .account-logout:hover {
+  color: #fff;
+  background: #b8382c;
+}
+
+
+

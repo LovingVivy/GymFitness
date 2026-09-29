@@ -1,15 +1,77 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CurtainFooter from "../components/CurtainFooter";
 import SiteHeader from "../components/SiteHeader";
-import { logout, updateCurrentUser, useAuth } from "../lib/authStore";
+import {
+  logout,
+  refreshProfile,
+  uploadAvatar,
+  useAuth,
+  useToken
+} from "../lib/authStore";
 import { navigateTo } from "../lib/navigation";
+import { useObjectUrl } from "../lib/useObjectUrl";
 import "./Profile.css";
 
-const formatDate = (value) =>
-  new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })
-    .format(new Date(value));
+const formatDate = (value) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(date);
+};
 
-const money = (value) => new Intl.NumberFormat("vi-VN").format(value || 0) + "đ";
+const formatDateTime = (value) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+};
+
+const money = (value) =>
+  new Intl.NumberFormat("vi-VN").format(Number(value) || 0) + "đ";
+
+const ACTIVITY_LABELS = { GYM: "Gym", YOGA: "Yoga" };
+
+// Ảnh chụp điện thoại thường 3–10MB: thu nhỏ trước khi gửi để luôn dưới giới hạn 2MB của API.
+const MAX_SOURCE_BYTES = 20 * 1024 * 1024;
+const AVATAR_MAX_EDGE = 512;
+
+async function resizeAvatar(file) {
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error("Trình duyệt không đọc được ảnh này, hãy dùng JPG, PNG hoặc WebP.");
+  }
+
+  const scale = Math.min(1, AVATAR_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close?.();
+
+  // WebP nhỏ hơn; trình duyệt không hỗ trợ xuất WebP sẽ tự trả về PNG nên ép sang JPEG.
+  const webp = canvas.toDataURL("image/webp", 0.88);
+  return webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/jpeg", 0.88);
+}
+
+const STATUS_LABELS = {
+  ACTIVE: "Đang hoạt động",
+  FROZEN: "Đang tạm dừng",
+  PENDING: "Chờ thanh toán",
+  EXPIRED: "Đã hết hạn",
+  CANCELLED: "Đã huỷ"
+};
 
 function EmptyProfile() {
   return (
@@ -28,43 +90,72 @@ function EmptyProfile() {
 
 export default function Profile() {
   const user = useAuth();
+  const token = useToken();
   const fileRef = useRef(null);
+  const toastTimer = useRef(null);
   const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const daysRemaining = useMemo(() => {
-    if (!user?.membership?.endDate) return 0;
-    const end = new Date(user.membership.endDate + "T23:59:59");
-    return Math.max(0, Math.ceil((end - new Date()) / 86400000));
-  }, [user]);
+  // Ảnh đại diện là tệp riêng tư nên phải tải kèm token.
+  const avatarSrc = useObjectUrl(user?.avatarUrl, token);
 
-  const membershipProgress = useMemo(() => {
-    if (!user?.membership) return 0;
-    const start = new Date(user.membership.startDate + "T00:00:00");
-    const end = new Date(user.membership.endDate + "T23:59:59");
-    const totalDays = Math.max(1, (end - start) / 86400000);
-    return Math.max(0, Math.min(360, (daysRemaining / totalDays) * 360));
-  }, [daysRemaining, user]);
+  useEffect(() => {
+    if (!user) return;
+    refreshProfile().catch(() => {
+      /* lỗi mạng thì giữ dữ liệu đang có */
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+
+  const membership = user?.membership ?? null;
+
+  const progress = useMemo(() => {
+    if (!membership?.totalDays || membership.daysRemaining == null) return 0;
+    const ratio = membership.daysRemaining / membership.totalDays;
+    return Math.max(0, Math.min(360, ratio * 360));
+  }, [membership]);
 
   if (!user) return <EmptyProfile />;
 
-  const membership = user.membership;
-  const pt = user.ptCredits || { purchased: 0, reserved: 0, used: 0, remaining: 0 };
-  const initials = user.fullName.split(" ").slice(-2).map((part) => part[0]).join("").toUpperCase();
+  const initials = (user.fullName || user.email || "?")
+    .split(" ")
+    .filter(Boolean)
+    .slice(-2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 
-  const handleAvatar = (event) => {
+  const notify = (message) => {
+    setNotice(message);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setNotice(""), 2600);
+  };
+
+  const handleAvatar = async (event) => {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setNotice("Ảnh cần nhỏ hơn 2MB.");
+
+    if (!file.type.startsWith("image/")) {
+      notify("Vui lòng chọn một tệp ảnh.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateCurrentUser({ avatar: reader.result });
-      setNotice("Đã cập nhật ảnh đại diện.");
-      window.setTimeout(() => setNotice(""), 2400);
-    };
-    reader.readAsDataURL(file);
+    if (file.size > MAX_SOURCE_BYTES) {
+      notify("Ảnh gốc cần nhỏ hơn 20MB.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await uploadAvatar(await resizeAvatar(file));
+      notify("Đã cập nhật ảnh đại diện.");
+    } catch (error) {
+      notify(error.message || "Không thể cập nhật ảnh đại diện.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleLogout = () => {
@@ -78,15 +169,30 @@ export default function Profile() {
 
       <section className="profile-hero">
         <div className="profile-identity">
-          <button className="profile-avatar" type="button" onClick={() => fileRef.current?.click()} aria-label="Đổi ảnh đại diện">
-            {user.avatar ? <img src={user.avatar} alt={user.fullName} /> : <span>{initials}</span>}
-            <small>Đổi ảnh</small>
+          <button
+            className="profile-avatar"
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            aria-label="Đổi ảnh đại diện"
+          >
+            {avatarSrc ? (
+              <img src={avatarSrc} alt={user.fullName || "Ảnh đại diện"} />
+            ) : (
+              <span>{initials}</span>
+            )}
+            <small>{busy ? "Đang lưu…" : "Đổi ảnh"}</small>
           </button>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatar} hidden />
           <div>
-            <p>Ironix member · {user.role}</p>
-            <h1>Chào, <em>{user.fullName}.</em></h1>
-            <span>{user.email} · {user.phone}</span>
+            <p>
+              {user.memberCode ? `Hội viên ${user.memberCode}` : "Ironix member"} · {user.role}
+            </p>
+            <h1>Chào, <em>{user.fullName || user.email}.</em></h1>
+            <span>
+              {user.email}
+              {user.phone ? ` · ${user.phone}` : ""}
+            </span>
           </div>
         </div>
         <button className="profile-logout" type="button" onClick={handleLogout}>Đăng xuất</button>
@@ -96,8 +202,11 @@ export default function Profile() {
         <article className="profile-card membership-overview">
           <header>
             <div><span>01</span><p>Gói hội viên</p></div>
-            <b className={membership ? "is-active" : ""}>{membership ? "Đang hoạt động" : "Chưa đăng ký"}</b>
+            <b className={membership ? "is-active" : ""}>
+              {membership ? STATUS_LABELS[membership.status] ?? membership.status : "Chưa đăng ký"}
+            </b>
           </header>
+
           {membership ? (
             <>
               <div className="membership-name">
@@ -106,15 +215,18 @@ export default function Profile() {
                   <h2>{membership.name}</h2>
                   <p>{membership.period} · {money(membership.price)}</p>
                 </div>
-                <div className="countdown-ring" style={{ "--progress": membershipProgress + "deg" }}>
-                  <strong>{daysRemaining}</strong><span>ngày còn lại</span>
+                <div className="countdown-ring" style={{ "--progress": progress + "deg" }}>
+                  <strong>{membership.daysRemaining ?? "—"}</strong>
+                  <span>ngày còn lại</span>
                 </div>
               </div>
+
               <div className="membership-dates">
-                <div><span>Ngày bắt đầu</span><strong>{formatDate(membership.startDate)}</strong></div>
+                <div><span>Ngày bắt đầu</span><strong>{formatDate(membership.startAt)}</strong></div>
                 <i>→</i>
-                <div><span>Ngày hết hạn</span><strong>{formatDate(membership.endDate)}</strong></div>
+                <div><span>Ngày hết hạn</span><strong>{formatDate(membership.endAt)}</strong></div>
               </div>
+
               <div className="membership-actions">
                 <a href="/schedule">Xem lịch tập <b>→</b></a>
                 <a href="/plans">Gia hạn gói</a>
@@ -129,37 +241,49 @@ export default function Profile() {
           )}
         </article>
 
-        <article className="profile-card pt-overview">
-          <header><div><span>02</span><p>PT của tôi</p></div><b>200K / buổi</b></header>
-          <div className="pt-total"><strong>{pt.purchased}</strong><span>buổi PT<br />đã đăng ký</span></div>
-          <div className="pt-breakdown">
-            <div><span>Còn lại</span><strong>{pt.remaining}</strong></div>
-            <div><span>Đã dùng</span><strong>{pt.used}</strong></div>
-            <div><span>Đang giữ</span><strong>{pt.reserved}</strong></div>
+        <article className="profile-card member-overview">
+          <header><div><span>02</span><p>Hồ sơ hội viên</p></div><b>Member</b></header>
+          <div className="member-code">
+            <small>Mã hội viên</small>
+            <strong>{user.memberCode || "—"}</strong>
           </div>
-          <a href={pt.remaining ? "/schedule" : "/plans"}>
-            {pt.remaining ? "Đặt lịch cùng PT" : "Mua thêm buổi PT"} <b>→</b>
-          </a>
+          <dl className="member-facts">
+            <div><dt>Chi nhánh</dt><dd>{user.homeBranch || "—"}</dd></div>
+            <div><dt>Ngày tham gia</dt><dd>{formatDate(user.joinedAt)}</dd></div>
+            <div><dt>Đăng nhập gần nhất</dt><dd>{formatDateTime(user.lastLoginAt)}</dd></div>
+            <div><dt>Vai trò</dt><dd>{user.role}</dd></div>
+          </dl>
         </article>
 
         <article className="profile-card body-overview">
           <header><div><span>03</span><p>Thông tin thể chất</p></div><b>Profile</b></header>
           <div className="body-stats">
-            <div><strong>{user.height || "—"}</strong><span>cm</span><small>Chiều cao</small></div>
-            <div><strong>{user.weight || "—"}</strong><span>kg</span><small>Cân nặng</small></div>
-            <div><strong>{user.weeklySessions || "—"}</strong><span>buổi</span><small>Mỗi tuần</small></div>
+            <div><strong>{user.height ?? "—"}</strong><span>cm</span><small>Chiều cao</small></div>
+            <div><strong>{user.weight ?? "—"}</strong><span>kg</span><small>Cân nặng</small></div>
+            <div><strong>{user.weeklySessions ?? "—"}</strong><span>buổi</span><small>Mỗi tuần</small></div>
           </div>
           <dl>
-            <div><dt>Kinh nghiệm</dt><dd>{user.experience}</dd></div>
-            <div><dt>Mục tiêu</dt><dd>{user.goal}</dd></div>
+            <div><dt>Kinh nghiệm</dt><dd>{user.experience || "Chưa cập nhật"}</dd></div>
+            <div><dt>Mục tiêu</dt><dd>{user.goal || "Chưa cập nhật"}</dd></div>
           </dl>
         </article>
 
-        <article className="profile-card next-session">
-          <header><div><span>04</span><p>Buổi tiếp theo</p></div><b>Upcoming</b></header>
-          <time>18 <span>Tháng 09</span></time>
-          <div><small>18:30 · 60 phút</small><h3>Upper Body Strength</h3><p>Studio A · PT Trần Hoàng Nam</p></div>
-          <a href="/schedule">Mở lịch tập →</a>
+        <article className="profile-card plan-detail">
+          <header><div><span>04</span><p>Chi tiết gói</p></div><b>Plan</b></header>
+          {membership ? (
+            <dl className="plan-facts">
+              <div><dt>Loại hình</dt><dd>{ACTIVITY_LABELS[membership.activityType] ?? membership.activityType}</dd></div>
+              <div><dt>Mã gói</dt><dd>{membership.planCode}</dd></div>
+              <div><dt>Thời hạn</dt><dd>{membership.period}</dd></div>
+              <div><dt>Tổng số ngày</dt><dd>{membership.totalDays ?? "—"}</dd></div>
+              <div><dt>Giá gói</dt><dd>{money(membership.price)}</dd></div>
+            </dl>
+          ) : (
+            <div className="plan-empty">
+              <p>Bạn chưa có gói tập nào đang hoạt động.</p>
+              <a href="/plans">Chọn gói tập →</a>
+            </div>
+          )}
         </article>
       </section>
 
