@@ -16,6 +16,7 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core import cache
 from app.core.config import get_settings, pt_session_price
 from app.core.gym_time import local_label
 from app.core.payment_code import new_payment_number
@@ -99,9 +100,23 @@ def list_trainers(db: Session, activity_type: str | None = None) -> list[Trainer
         raise error(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "INVALID_ACTIVITY", "Loại hình không hợp lệ."
         )
+    return cache.get_or_load(
+        cache.CATALOG,
+        f"trainers:{normalised or 'ALL'}",
+        get_settings().cache_catalog_ttl_seconds,
+        lambda: [
+            TrainerSummary(**_to_trainer_summary(row))
+            for row in pt_repository.list_trainers(db, normalised)
+        ],
+        list[TrainerSummary],
+    )
+
+
+def list_bookable_trainers(db: Session, user_id: str) -> list[TrainerSummary]:
+    """Trainers this member may book: specialty matches an active plan (ADR-018)."""
     return [
         TrainerSummary(**_to_trainer_summary(row))
-        for row in pt_repository.list_trainers(db, normalised)
+        for row in pt_repository.list_trainers(db, member_user_id=user_id)
     ]
 
 

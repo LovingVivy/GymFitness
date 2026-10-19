@@ -20,6 +20,8 @@ API_KEY = "pytest-sepay-key"
 @pytest.fixture
 def sepay_key(monkeypatch) -> str:
     monkeypatch.setattr(get_settings(), "sepay_webhook_api_key", API_KEY)
+    # Khớp accountNumber của _sepay(), không phụ thuộc tài khoản thật trong .env.
+    monkeypatch.setattr(get_settings(), "payment_account_no", "0123456789")
     return API_KEY
 
 

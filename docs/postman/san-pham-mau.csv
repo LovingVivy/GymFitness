@@ -1,0 +1,3 @@
+SKU,Tên sản phẩm,Danh mục,Nhóm (GYM/YOGA),Giá,Tồn kho,Trạng thái (ACTIVE/DRAFT/INACTIVE),Mô tả,Nhãn
+POSTMAN-SAMPLE-01,Sản phẩm mẫu Postman 1,Phụ kiện,GYM,150000,10,DRAFT,Dòng mẫu để thử API nhập sản phẩm,
+POSTMAN-SAMPLE-02,Sản phẩm mẫu Postman 2,Dụng cụ,YOGA,90000,5,DRAFT,Dòng mẫu để thử API nhập sản phẩm,

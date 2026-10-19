@@ -8,17 +8,27 @@ suite is repeatable on a shared development database.
 
 from __future__ import annotations
 
+import os
 import uuid
 from collections.abc import Iterator
+from email.message import EmailMessage
 from typing import Any
 
-import pymysql
-import pytest
-from fastapi.testclient import TestClient
+# Đặt trước khi import app: cấu hình được đọc một lần khi khởi tạo.
+# Rate limit và cache tắt để các test độc lập với nhau (có test riêng bật chúng lên);
+# tác vụ nền chạy đồng bộ để test kiểm tra được kết quả ngay sau request.
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+os.environ.setdefault("CACHE_ENABLED", "false")
+os.environ.setdefault("REDIS_ENABLED", "false")
+os.environ.setdefault("JOB_QUEUE_MODE", "inline")
 
-from app.core import storage
-from app.core.config import get_settings
-from app.main import app
+import pymysql  # noqa: E402
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+from app.core import mailer, storage  # noqa: E402
+from app.core.config import get_settings  # noqa: E402
+from app.main import app  # noqa: E402
 
 settings = get_settings()
 
@@ -61,9 +71,14 @@ def purge_account(db: pymysql.connections.Connection, email: str) -> None:
     """
     with db.cursor() as cursor:
         user_id = _fetch_one(cursor, "SELECT id FROM users WHERE email = %s", (email,))
-        if user_id is None:
-            return
+    if user_id is not None:
+        purge_user(db, user_id)
 
+
+def purge_user(db: pymysql.connections.Connection, user_id: str) -> None:
+    """Same as :func:`purge_account` but by id (deleted accounts get anonymised emails)."""
+    storage_keys: list[str] = []
+    with db.cursor() as cursor:
         member_id = _fetch_one(cursor, "SELECT id FROM members WHERE user_id = %s", (user_id,))
         trainer_id = _fetch_one(
             cursor, "SELECT id FROM trainer_profiles WHERE user_id = %s", (user_id,)
@@ -73,6 +88,7 @@ def purge_account(db: pymysql.connections.Connection, email: str) -> None:
             cursor.execute("DELETE FROM trainer_availability WHERE trainer_id = %s", (trainer_id,))
 
         if member_id is not None:
+            cursor.execute("DELETE FROM check_ins WHERE member_id = %s", (member_id,))
             cursor.execute(
                 "DELETE FROM pt_credit_ledger WHERE credit_account_id IN "
                 "(SELECT id FROM pt_credit_accounts WHERE member_id = %s)",
@@ -103,12 +119,19 @@ def purge_account(db: pymysql.connections.Connection, email: str) -> None:
                 "(SELECT id FROM payments WHERE member_id = %s)",
                 (member_id,),
             )
+            cursor.execute(
+                "DELETE FROM invoices WHERE payment_id IN "
+                "(SELECT id FROM payments WHERE member_id = %s)",
+                (member_id,),
+            )
             cursor.execute("DELETE FROM payments WHERE member_id = %s", (member_id,))
 
         cursor.execute("SELECT storage_key FROM file_assets WHERE owner_user_id = %s", (user_id,))
         storage_keys = [row[0] for row in cursor.fetchall()]
 
         cursor.execute("DELETE FROM notifications WHERE user_id = %s", (user_id,))
+        cursor.execute("DELETE FROM background_jobs WHERE requested_by = %s", (user_id,))
+        cursor.execute("DELETE FROM audit_logs WHERE entity_id = %s", (user_id,))
         cursor.execute(
             "UPDATE user_profiles SET avatar_file_id = NULL WHERE user_id = %s", (user_id,)
         )
@@ -171,3 +194,22 @@ def session(account: dict[str, str]) -> dict[str, Any]:
         "user": body["user"],
         "headers": {"Authorization": f"Bearer {body['access_token']}"},
     }
+
+
+@pytest.fixture(autouse=True)
+def outbox(monkeypatch) -> list[EmailMessage]:
+    """Every email the code tries to send during a test, instead of SMTP or disk."""
+    sent: list[EmailMessage] = []
+
+    def capture(message: EmailMessage) -> str:
+        sent.append(message)
+        return "test-outbox"
+
+    monkeypatch.setattr(mailer, "deliver", capture)
+    return sent
+
+
+def mail_text(message: EmailMessage) -> str:
+    """Plain-text body of a captured email."""
+    part = message.get_body(preferencelist=("plain",))
+    return part.get_content() if part else ""

@@ -28,6 +28,16 @@ def list_trainers(db: DbDep, activity_type: ActivityTypeQuery = None) -> list[Tr
     return pt_service.list_trainers(db, activity_type)
 
 
+@router.get(
+    "/bookable",
+    response_model=list[TrainerSummary],
+    summary="Huấn luyện viên tôi đặt được theo gói tập",
+)
+def list_bookable_trainers(user: CurrentUserDep, db: DbDep) -> list[TrainerSummary]:
+    """Chỉ PT có chuyên môn trùng loại hình (Gym/Yoga) của gói hội viên còn hiệu lực."""
+    return pt_service.list_bookable_trainers(db, user["id"])
+
+
 @router.get("/me", response_model=TrainerProfileResponse, summary="Hồ sơ huấn luyện viên của tôi")
 def read_my_trainer_profile(user: TrainerDep, db: DbDep) -> TrainerProfileResponse:
     return pt_service.get_my_trainer_profile(db, user["id"])

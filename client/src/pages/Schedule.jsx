@@ -1,7 +1,10 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import CurtainFooter from "../components/CurtainFooter";
 import SiteHeader from "../components/SiteHeader";
-import { updateCurrentUser, useAuth } from "../lib/authStore";
+import { refreshProfile, useAuth } from "../lib/authStore";
+import { navigateTo } from "../lib/navigation";
+import { createBooking, listBookableTrainers, listMyBookings, listTrainerSlots } from "../lib/ptApi";
+import { GYM_TIME_ZONE, formatTime } from "../lib/ptFormat";
 import "./Schedule.css";
 
 const programs = {
@@ -25,16 +28,13 @@ const programs = {
   ]
 };
 
-const availableTrainers = [
-  { id: "pt-01", name: "Trần Hoàng Nam", initials: "HN", specialty: "Strength & Hypertrophy", experience: "6 năm kinh nghiệm", slots: ["07:00", "18:30"] },
-  { id: "pt-02", name: "Lê Minh Khoa", initials: "MK", specialty: "Functional Fitness", experience: "5 năm kinh nghiệm", slots: ["09:00", "17:30"] },
-  { id: "pt-03", name: "Nguyễn Thanh Vy", initials: "TV", specialty: "Yoga & Mobility", experience: "7 năm kinh nghiệm", slots: ["08:00", "19:00"] },
-  { id: "pt-04", name: "Phạm Gia Hân", initials: "GH", specialty: "Fat loss coaching", experience: "4 năm kinh nghiệm", slots: ["10:30", "20:00"] }
-];
+// Buổi PT hiện trên lịch: đang chờ tới giờ tập hoặc đã tập xong.
+const CHIP_LABELS = { REQUESTED: "Đã đặt PT", ACCEPTED: "Đã đặt PT", COMPLETED: "Đã tập cùng PT" };
 
 const dayName = new Intl.DateTimeFormat("vi-VN", { weekday: "short" });
 const monthName = new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" });
 const fullDate = new Intl.DateTimeFormat("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
+const gymDateKey = new Intl.DateTimeFormat("en-CA", { timeZone: GYM_TIME_ZONE });
 
 function toDateKey(date) {
   const year = date.getFullYear();
@@ -48,6 +48,16 @@ function startOfToday() {
   return new Date(today.getFullYear(), today.getMonth(), today.getDate());
 }
 
+/** "Nguyễn Nhật Nam" -> "NN": chữ đầu của hai từ cuối. */
+const initials = (name) =>
+  (name || "PT")
+    .trim()
+    .split(/\s+/)
+    .slice(-2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+
 export default function Schedule() {
   const user = useAuth();
   const initialMode = user?.membership?.category || "Gym";
@@ -58,6 +68,12 @@ export default function Schedule() {
   });
   const [selectedDate, setSelectedDate] = useState(null);
   const [notice, setNotice] = useState("");
+  const [bookings, setBookings] = useState([]);
+  // null = đang tải; mảng = PT đặt được kèm giờ trống trong ngày đang chọn.
+  const [options, setOptions] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const hasMembership = Boolean(user?.membership);
 
   const monthDays = useMemo(() => {
     const count = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
@@ -66,6 +82,31 @@ export default function Schedule() {
       (_, index) => new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), index + 1)
     );
   }, [visibleMonth]);
+
+  const loadBookings = useCallback(() => {
+    listMyBookings()
+      .then(setBookings)
+      .catch(() => {
+        /* lịch vẫn dùng được khi chưa tải được buổi PT */
+      });
+  }, []);
+
+  useEffect(() => {
+    if (hasMembership) loadBookings();
+  }, [hasMembership, loadBookings]);
+
+  // Mỗi ngày hiện một buổi PT: ưu tiên buổi sớm nhất còn hiệu lực.
+  const bookingByDate = useMemo(() => {
+    const map = new Map();
+    [...bookings]
+      .filter((booking) => CHIP_LABELS[booking.status])
+      .sort((a, b) => new Date(a.start_at) - new Date(b.start_at))
+      .forEach((booking) => {
+        const key = gymDateKey.format(new Date(booking.start_at));
+        if (!map.has(key)) map.set(key, booking);
+      });
+    return map;
+  }, [bookings]);
 
   if (!user?.membership) {
     return (
@@ -84,19 +125,38 @@ export default function Schedule() {
 
   const showNotice = (message) => {
     setNotice(message);
-    window.setTimeout(() => setNotice(""), 2800);
+    window.setTimeout(() => setNotice(""), 3200);
   };
 
-  const openTrainerPicker = (date, isPast) => {
+  const closePicker = () => {
+    setSelectedDate(null);
+    setOptions(null);
+  };
+
+  // PT có chuyên môn trùng gói tập, kèm các ô 60 phút còn trống đúng ngày được chọn.
+  const openTrainerPicker = async (date, isPast) => {
     if (isPast) {
       showNotice("Không thể đặt PT cho ngày đã qua.");
       return;
     }
-    if (!user.ptCredits?.remaining) {
-      showNotice("Bạn chưa còn lượt PT. Hãy mua thêm tại trang gói tập.");
-      return;
-    }
+    const dateKey = toDateKey(date);
     setSelectedDate(date);
+    setOptions(null);
+    try {
+      const trainers = await listBookableTrainers();
+      const slotLists = await Promise.all(trainers.map((trainer) => listTrainerSlots(trainer.id)));
+      setOptions(
+        trainers
+          .map((trainer, index) => ({
+            trainer,
+            slots: slotLists[index].filter((slot) => slot.local_date === dateKey)
+          }))
+          .filter((option) => option.slots.length > 0)
+      );
+    } catch (error) {
+      showNotice(error.message || "Không tải được danh sách huấn luyện viên.");
+      closePicker();
+    }
   };
 
   const handleContextMenu = (event, date, isPast) => {
@@ -104,40 +164,34 @@ export default function Schedule() {
     openTrainerPicker(date, isPast);
   };
 
-  const bookTrainer = (trainer) => {
-    const dateKey = toDateKey(selectedDate);
-    const existing = user.appointments || [];
-    if (existing.some((appointment) => appointment.date === dateKey)) {
-      showNotice("Ngày này đã có một yêu cầu PT.");
-      setSelectedDate(null);
+  const buyCredits = () => navigateTo(`/pt-booking?date=${toDateKey(selectedDate)}`);
+
+  const bookSlot = async (trainer, slot) => {
+    if (!user.ptCredits?.remaining) {
+      buyCredits();
       return;
     }
-
-    updateCurrentUser({
-      appointments: [
-        ...existing,
-        {
-          id: crypto.randomUUID(),
-          date: dateKey,
-          trainerId: trainer.id,
-          trainerName: trainer.name,
-          status: "REQUESTED",
-          time: trainer.slots[0]
-        }
-      ],
-      ptCredits: {
-        ...user.ptCredits,
-        remaining: Math.max(0, user.ptCredits.remaining - 1),
-        reserved: user.ptCredits.reserved + 1
+    setBusy(true);
+    try {
+      await createBooking({ trainer_id: trainer.id, start_at: slot.start_at, notes: null });
+      closePicker();
+      showNotice(`Đã đặt buổi với ${trainer.full_name} lúc ${slot.local_start}. Huấn luyện viên đã nhận thông báo.`);
+      loadBookings();
+      refreshProfile().catch(() => null);
+    } catch (error) {
+      if (error.code === "NO_PT_CREDIT") {
+        buyCredits();
+        return;
       }
-    });
-    setSelectedDate(null);
-    showNotice("Đã gửi yêu cầu tới PT " + trainer.name + ". Một lượt PT đang được giữ.");
+      showNotice(error.message || "Không thể đặt buổi.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const changeMonth = (offset) => {
     setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
-    setSelectedDate(null);
+    closePicker();
   };
 
   return (
@@ -184,11 +238,11 @@ export default function Schedule() {
               const today = startOfToday();
               const isPast = date < today;
               const isToday = date.getTime() === today.getTime();
-              const appointment = user.appointments?.find((item) => item.date === toDateKey(date));
+              const booking = bookingByDate.get(toDateKey(date));
 
               return (
                 <article
-                  className={(isPast ? "is-past " : "") + (isToday ? "is-today " : "") + (appointment ? "has-appointment" : "")}
+                  className={(isPast ? "is-past " : "") + (isToday ? "is-today " : "") + (booking ? "has-appointment" : "")}
                   key={date.toISOString()}
                   onContextMenu={(event) => handleContextMenu(event, date, isPast)}
                 >
@@ -202,12 +256,12 @@ export default function Schedule() {
                     <h3>{activity}</h3>
                     <p>{time} · {duration}</p>
                   </div>
-                  {appointment ? (
-                    <div className="appointment-chip">
-                      <span>Đang chờ PT</span>
-                      <strong>{appointment.trainerName}</strong>
-                      <small>{appointment.time}</small>
-                    </div>
+                  {booking ? (
+                    <a className="appointment-chip" href="/pt-booking">
+                      <span>{CHIP_LABELS[booking.status]}</span>
+                      <strong>{booking.trainer_name}</strong>
+                      <small>{formatTime(booking.start_at)} – {formatTime(booking.end_at)}</small>
+                    </a>
                   ) : activity !== "Rest day" && (
                     <button type="button" disabled={isPast} onClick={() => openTrainerPicker(date, isPast)}>
                       Chọn PT <span>+</span>
@@ -224,31 +278,55 @@ export default function Schedule() {
 
       {selectedDate && (
         <div className="pt-picker-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setSelectedDate(null);
+          if (event.target === event.currentTarget) closePicker();
         }}>
           <section className="pt-picker" role="dialog" aria-modal="true" aria-labelledby="ptPickerTitle">
             <header>
               <div>
-                <span>Available trainers</span>
-                <h2 id="ptPickerTitle">Chọn PT đang rảnh.</h2>
+                <span>Huấn luyện viên {user.membership.category}</span>
+                <h2 id="ptPickerTitle">Chọn PT và giờ tập.</h2>
                 <p>{fullDate.format(selectedDate)} · còn {user.ptCredits.remaining} lượt PT</p>
               </div>
-              <button type="button" onClick={() => setSelectedDate(null)} aria-label="Đóng">×</button>
+              <button type="button" onClick={closePicker} aria-label="Đóng">×</button>
             </header>
-            <div className="trainer-list">
-              {availableTrainers.map((trainer) => (
-                <button type="button" className="trainer-option" key={trainer.id} onClick={() => bookTrainer(trainer)}>
-                  <span className="trainer-avatar">{trainer.initials}</span>
-                  <span className="trainer-copy">
-                    <small><i /> Đang rảnh</small>
-                    <strong>{trainer.name}</strong>
-                    <em>{trainer.specialty} · {trainer.experience}</em>
-                  </span>
-                  <span className="trainer-slots">{trainer.slots.map((slot) => <b key={slot}>{slot}</b>)}</span>
-                  <span className="trainer-arrow">→</span>
-                </button>
-              ))}
-            </div>
+
+            {options === null ? (
+              <p className="pt-picker-empty">Đang tải giờ trống…</p>
+            ) : options.length === 0 ? (
+              <div className="pt-picker-empty">
+                <p>Chưa có huấn luyện viên {user.membership.category} nào còn giờ trống trong ngày này. Giờ đặt được nằm trong 14 ngày tới và cách hiện tại ít nhất 2 tiếng.</p>
+                <a href="/pt-booking">Xem các ngày khác →</a>
+              </div>
+            ) : (
+              <div className="trainer-list">
+                {!user.ptCredits?.remaining ? (
+                  <p className="pt-picker-note">Bạn chưa có lượt PT. Chọn một giờ để chuyển sang trang mua lượt và đặt buổi.</p>
+                ) : null}
+                {options.map(({ trainer, slots }) => (
+                  <div className="trainer-option is-real" key={trainer.id}>
+                    <span className="trainer-avatar">{initials(trainer.full_name)}</span>
+                    <span className="trainer-copy">
+                      <small><i /> {slots.length} giờ trống</small>
+                      <strong>{trainer.full_name}</strong>
+                      <em>{trainer.employee_code} · {trainer.specialties.join(" · ")}</em>
+                    </span>
+                    <span className="trainer-slots">
+                      {slots.map((slot) => (
+                        <button
+                          type="button"
+                          key={slot.start_at}
+                          disabled={busy}
+                          onClick={() => bookSlot(trainer, slot)}
+                          aria-label={`Đặt ${trainer.full_name} lúc ${slot.local_start}`}
+                        >
+                          {slot.local_start}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       )}

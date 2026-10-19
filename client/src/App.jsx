@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Admin from "./pages/Admin.jsx";
 import Auth from "./pages/Auth.jsx";
 import Home from "./pages/Home.jsx";
 import PlanRegistration from "./pages/PlanRegistration.jsx";
@@ -7,6 +8,7 @@ import Profile from "./pages/Profile.jsx";
 import PTBooking from "./pages/PTBooking.jsx";
 import PTDashboard from "./pages/PTDashboard.jsx";
 import PTSchedule from "./pages/PTSchedule.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 import Schedule from "./pages/Schedule.jsx";
 import { getCurrentUser, getToken, logout, refreshProfile } from "./lib/authStore.js";
 import "./App.css";
@@ -24,6 +26,8 @@ const routeMap = {
   "/schedule": Schedule,
   "/pt": PTDashboard,
   "/pt-schedule": PTSchedule,
+  "/admin": Admin,
+  "/reset-password": ResetPassword,
   "/pt-booking": PTBooking
 };
 

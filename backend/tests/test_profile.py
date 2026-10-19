@@ -214,8 +214,9 @@ def test_mark_paid_activates_membership_and_exposes_days_remaining(session) -> N
     assert membership["plan_code"] == "GYM_MONTHLY"
     assert membership["plan_name"] == "Gym theo tháng"
     assert membership["activity_type"] == "GYM"
-    assert membership["days_remaining"] == 30, "gói 1 tháng phải còn đúng 30 ngày"
-    assert membership["total_days"] == 30
+    # ADR-003: gói tháng theo lịch tháng thật, nên số ngày phụ thuộc tháng đang mua.
+    assert membership["days_remaining"] in (28, 29, 30, 31)
+    assert membership["total_days"] == membership["days_remaining"]
     assert membership["start_at"] and membership["end_at"]
     assert membership["end_at"] > membership["start_at"]
 

@@ -24,11 +24,12 @@ from urllib.parse import quote, urlencode
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core import cache
 from app.core.config import get_settings
 from app.core.payment_code import extract_payment_number
+from app.core.permissions import Permission, has_permission
 from app.core.security import utcnow
 from app.db.base import new_uuid
-from app.models.enums import UserRole
 from app.repositories import payments as payments_repository
 from app.repositories import profile as profile_repository
 from app.repositories import pt as pt_repository
@@ -41,6 +42,7 @@ from app.schemas.payments import (
 )
 from app.schemas.profile import ProfileResponse
 from app.services import profile as profile_service
+from app.tasks import queue
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +154,14 @@ def _grant(db: Session, payment: Mapping[str, Any], changed_by: str | None) -> P
     )
 
 
+def _after_paid(db: Session, payment_id: str) -> None:
+    """Side effects of every successful payment, whichever path confirmed it."""
+    payments_repository.notify_paid(db, payment_id)
+    cache.invalidate(cache.REPORTS)
+    # Email hoá đơn qua hàng đợi: SMTP chậm không làm chậm webhook hay request.
+    queue.enqueue(db, "email.payment_receipt", {"payment_id": payment_id})
+
+
 def _raise_for_outcome(outcome: ProcedureOutcome) -> None:
     code = outcome.error_code or INTERNAL_ERROR
     status_code, message = _CONFIRM_ERRORS.get(code, _CONFIRM_ERRORS[INTERNAL_ERROR])
@@ -164,7 +174,7 @@ def simulate_payment(db: Session, user: Mapping[str, Any], payment_id: str) -> P
     Stands in for the bank webhook while developing, so the whole flow can be
     exercised without transferring real money.
     """
-    is_admin = user["role"] == UserRole.ADMIN.value
+    is_admin = has_permission(user["role"], Permission.PAYMENTS_CONFIRM)
     if is_admin:
         payment = pt_repository.get_payment(db, payment_id)
     else:
@@ -190,8 +200,30 @@ def simulate_payment(db: Session, user: Mapping[str, Any], payment_id: str) -> P
     if not outcome.succeeded:
         _raise_for_outcome(outcome)
 
-    payments_repository.notify_paid(db, payment["id"])
+    _after_paid(db, payment["id"])
     return profile_service.get_profile(db, user["id"])
+
+
+def confirm_by_admin(db: Session, admin_id: str, payment_id: str) -> None:
+    """Admin confirms money received outside the webhook (cash, short transfer...).
+
+    Grants the benefit through the same procedures as the webhook; the caller
+    writes the audit log.
+    """
+    payment = pt_repository.get_payment(db, payment_id)
+    if payment is None:
+        raise _payment_not_found()
+
+    if str(payment["status"]) != "PENDING":
+        raise _error(
+            status.HTTP_409_CONFLICT, "PAYMENT_NOT_PENDING", "Giao dịch đã được xử lý trước đó."
+        )
+
+    outcome = _grant(db, payment, changed_by=admin_id)
+    if not outcome.succeeded:
+        _raise_for_outcome(outcome)
+
+    _after_paid(db, payment["id"])
 
 
 # --------------------------------------------------------------------------
@@ -295,5 +327,5 @@ def handle_sepay_webhook(
         )
 
     ack = finish(payment["id"], None)
-    payments_repository.notify_paid(db, payment["id"])
+    _after_paid(db, payment["id"])
     return ack

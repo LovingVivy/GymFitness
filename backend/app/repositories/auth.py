@@ -13,7 +13,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.repositories.procedures import call
+from app.repositories.procedures import ProcedureOutcome, call, outcome_from
 
 REGISTER = "sp_auth_register"
 FIND_USER_BY_EMAIL = "sp_auth_find_user_by_email"
@@ -105,3 +105,48 @@ def mark_login_failed(
             "p_lock_minutes": lock_minutes,
         },
     )
+
+
+PASSWORD_RESET_CREATE = "sp_password_reset_create"
+PASSWORD_RESET_CONSUME = "sp_password_reset_consume"
+TWO_FACTOR_GET = "sp_auth_two_factor_get"
+TWO_FACTOR_SET = "sp_auth_two_factor_set"
+
+
+def create_password_reset(
+    db: Session, *, token_id: str, user_id: str, token_digest: str, ttl_minutes: int
+) -> dict[str, Any] | None:
+    """Store a reset token digest; return the recipient or ``None`` if not eligible."""
+    rows = call(
+        db,
+        PASSWORD_RESET_CREATE,
+        {
+            "p_token_id": token_id,
+            "p_user_id": user_id,
+            "p_token_digest": token_digest,
+            "p_ttl_minutes": ttl_minutes,
+        },
+    )
+    row = rows[0] if rows else {}
+    return row if row.get("email") else None
+
+
+def consume_password_reset(
+    db: Session, *, token_digest: str, password_hash: str
+) -> ProcedureOutcome:
+    rows = call(
+        db,
+        PASSWORD_RESET_CONSUME,
+        {"p_token_digest": token_digest, "p_password_hash": password_hash},
+    )
+    return outcome_from(rows, "user_id")
+
+
+def get_two_factor_secret(db: Session, user_id: str) -> str | None:
+    rows = call(db, TWO_FACTOR_GET, {"p_user_id": user_id})
+    return rows[0].get("two_factor_secret_encrypted") if rows else None
+
+
+def set_two_factor_secret(db: Session, user_id: str, secret: str | None) -> ProcedureOutcome:
+    rows = call(db, TWO_FACTOR_SET, {"p_user_id": user_id, "p_secret_encrypted": secret})
+    return outcome_from(rows)

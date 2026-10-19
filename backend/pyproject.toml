@@ -2,6 +2,16 @@
 pythonpath = ["."]
 testpaths = ["tests"]
 
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+# Yêu cầu tối thiểu của đồ án là 30–40%; ngưỡng này chặn việc tụt xa mức hiện tại.
+fail_under = 80
+show_missing = true
+skip_covered = true
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

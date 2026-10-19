@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import CurtainFooter from "../components/CurtainFooter";
 import SiteHeader from "../components/SiteHeader";
+import TwoFactorCard from "../components/TwoFactorCard";
 import {
   logout,
   refreshProfile,
@@ -108,6 +109,13 @@ export default function Profile() {
   }, []);
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+
+  // Liên kết /profile#security từ menu tài khoản: cuộn tới khối bảo mật.
+  useEffect(() => {
+    if (window.location.hash === "#security") {
+      window.setTimeout(() => document.getElementById("security")?.scrollIntoView({ block: "start" }), 120);
+    }
+  }, []);
 
   const membership = user?.membership ?? null;
 
@@ -285,6 +293,8 @@ export default function Profile() {
             </div>
           )}
         </article>
+
+        <TwoFactorCard enabled={user.twoFactorEnabled} notify={notify} />
       </section>
 
       <CurtainFooter />

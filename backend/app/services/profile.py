@@ -17,10 +17,12 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core import storage
-from app.core.config import pt_session_price
+from app.core import cache, storage
+from app.core.config import get_settings, pt_session_price
 from app.core.payment_code import new_payment_number
+from app.core.permissions import sorted_permissions
 from app.db.base import new_uuid
+from app.repositories import auth as auth_repository
 from app.repositories import profile as profile_repository
 from app.schemas.profile import (
     MembershipSummary,
@@ -139,6 +141,7 @@ def _to_profile(row: Mapping[str, Any]) -> ProfileResponse:
         ),
         created_at=row.get("user_created_at"),
         last_login_at=row.get("last_login_at"),
+        permissions=sorted_permissions(row["role"]),
     )
 
 
@@ -146,7 +149,9 @@ def get_profile(db: Session, user_id: str) -> ProfileResponse:
     row = profile_repository.get_profile(db, user_id)
     if row is None:
         raise _error(status.HTTP_404_NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy tài khoản.")
-    return _to_profile(row)
+    profile = _to_profile(row)
+    profile.two_factor_enabled = bool(auth_repository.get_two_factor_secret(db, user_id))
+    return profile
 
 
 def update_profile(db: Session, user_id: str, payload: ProfileUpdateRequest) -> ProfileResponse:
@@ -236,7 +241,13 @@ def save_avatar(db: Session, user_id: str, *, data_url: str) -> ProfileResponse:
 
 
 def list_plans(db: Session) -> list[PlanResponse]:
-    return [PlanResponse(**row) for row in profile_repository.list_active_plans(db)]
+    return cache.get_or_load(
+        cache.CATALOG,
+        "plans",
+        get_settings().cache_catalog_ttl_seconds,
+        lambda: [PlanResponse(**row) for row in profile_repository.list_active_plans(db)],
+        list[PlanResponse],
+    )
 
 
 def create_subscription(

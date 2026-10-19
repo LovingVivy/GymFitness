@@ -72,6 +72,8 @@ function normalizeProfile(profile) {
     joinedAt: profile.member_joined_at,
     createdAt: profile.created_at,
     lastLoginAt: profile.last_login_at,
+    permissions: profile.permissions ?? [],
+    twoFactorEnabled: Boolean(profile.two_factor_enabled),
     ptCredits: {
       purchased: profile.pt_credits?.purchased ?? 0,
       reserved: profile.pt_credits?.reserved ?? 0,
@@ -124,14 +126,65 @@ export async function refreshProfile() {
   }
 }
 
+async function startSession(data) {
+  persistToken(data.access_token);
+  const profile = await refreshProfile();
+  return profile ?? persistUser(normalizeProfile(data.user));
+}
+
+/**
+ * Sign in. Accounts with two-step verification get `{ twoFactor: { challengeToken } }`
+ * back instead of a session; pass the 6-digit code to `verifyTwoFactor`.
+ */
 export async function login(email, password) {
   const data = await request("/auth/login", {
     method: "POST",
     body: { email, password }
   });
-  persistToken(data.access_token);
-  const profile = await refreshProfile();
-  return profile ?? persistUser(normalizeProfile(data.user));
+  if (data.two_factor_required) {
+    return { twoFactor: { challengeToken: data.challenge_token, expiresIn: data.expires_in } };
+  }
+  return startSession(data);
+}
+
+export async function verifyTwoFactor(challengeToken, code) {
+  const data = await request("/auth/2fa/verify", {
+    method: "POST",
+    body: { challenge_token: challengeToken, code }
+  });
+  return startSession(data);
+}
+
+export function forgotPassword(email) {
+  return request("/auth/forgot-password", { method: "POST", body: { email } });
+}
+
+export function resetPassword(token, password) {
+  return request("/auth/reset-password", { method: "POST", body: { token, password } });
+}
+
+export function setupTwoFactor() {
+  return request("/auth/2fa/setup", { method: "POST", token: getToken() });
+}
+
+export async function enableTwoFactor(setupToken, code) {
+  const result = await request("/auth/2fa/enable", {
+    method: "POST",
+    body: { setup_token: setupToken, code },
+    token: getToken()
+  });
+  await refreshProfile();
+  return result;
+}
+
+export async function disableTwoFactor(password, code) {
+  const result = await request("/auth/2fa/disable", {
+    method: "POST",
+    body: { password, code },
+    token: getToken()
+  });
+  await refreshProfile();
+  return result;
 }
 
 export async function signup({ fullName, email, phone, password }) {
@@ -139,9 +192,7 @@ export async function signup({ fullName, email, phone, password }) {
     method: "POST",
     body: { full_name: fullName, email, phone: phone || null, password }
   });
-  persistToken(data.access_token);
-  const profile = await refreshProfile();
-  return profile ?? persistUser(normalizeProfile(data.user));
+  return startSession(data);
 }
 
 export async function updateProfile(patch) {

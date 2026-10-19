@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import CurtainFooter from "../components/CurtainFooter";
-import { login, signup } from "../lib/authStore";
+import { forgotPassword, login, signup, verifyTwoFactor } from "../lib/authStore";
 import { navigateTo } from "../lib/navigation";
+import { can, P } from "../lib/permissions";
 import "./Auth.css";
 
 const coverImages = {
@@ -37,12 +38,17 @@ export default function Auth({ mode }) {
   const isSignup = mode === "signup";
   const [showPassword, setShowPassword] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
+  // Tài khoản bật xác thực 2 bước: mật khẩu đúng thì chuyển sang bước nhập mã.
+  const [twoFactor, setTwoFactor] = useState(null);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
   const formRef = useRef(null);
 
   useEffect(() => {
     setForgotMode(false);
+    setTwoFactor(null);
     setShowPassword(false);
   }, [mode]);
 
@@ -54,12 +60,48 @@ export default function Auth({ mode }) {
     toastTimer.current = window.setTimeout(() => setToast(""), 2600);
   };
 
+  const goHome = (authenticatedUser) => {
+    notify(isSignup ? "Đăng ký thành công. Hãy chọn gói tập." : "Đăng nhập thành công.");
+    const returnTo = localStorage.getItem("ironix_return_to");
+    localStorage.removeItem("ironix_return_to");
+    // Quản trị/quản lý vào trang quản trị; PT vào khu làm việc.
+    const destination = can(authenticatedUser, P.DASHBOARD_VIEW)
+      ? "/admin"
+      : authenticatedUser.role === "PT"
+        ? "/pt"
+        : authenticatedUser.membership ? "/profile" : returnTo || "/plans";
+    window.setTimeout(() => navigateTo(destination), 650);
+  };
+
+  const handleVerify = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      goHome(await verifyTwoFactor(twoFactor.challengeToken, code.trim()));
+    } catch (error) {
+      notify(error.message);
+      if (error.code === "CHALLENGE_EXPIRED") setTwoFactor(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
 
     if (forgotMode) {
-      notify("Đã tạo yêu cầu đặt lại mật khẩu.");
+      const email = new FormData(event.currentTarget).get("email");
+      setBusy(true);
+      try {
+        const result = await forgotPassword(email);
+        notify(result.message);
+        window.setTimeout(() => setForgotMode(false), 2600);
+      } catch (error) {
+        notify(error.message);
+      } finally {
+        setBusy(false);
+      }
       return;
     }
 
@@ -70,7 +112,7 @@ export default function Auth({ mode }) {
     }
 
     try {
-      const authenticatedUser = isSignup
+      const result = isSignup
         ? await signup({
             fullName: data.get("fullName"),
             email: data.get("email"),
@@ -79,14 +121,12 @@ export default function Auth({ mode }) {
           })
         : await login(data.get("email"), data.get("password"));
 
-      notify(isSignup ? "Đăng ký thành công. Hãy chọn gói tập." : "Đăng nhập thành công.");
-      const returnTo = localStorage.getItem("ironix_return_to");
-      localStorage.removeItem("ironix_return_to");
-      // PT vào khu làm việc; trang Buổi dạy tự chuyển sang "Lịch của bạn" nếu chưa khai lịch.
-      const destination = authenticatedUser.role === "PT"
-        ? "/pt"
-        : authenticatedUser.membership ? "/profile" : returnTo || "/plans";
-      window.setTimeout(() => navigateTo(destination), 650);
+      if (result.twoFactor) {
+        setCode("");
+        setTwoFactor(result.twoFactor);
+        return;
+      }
+      goHome(result);
     } catch (error) {
       notify(error.message);
     }
@@ -131,6 +171,41 @@ export default function Auth({ mode }) {
           </a>
         </div>
 
+        {twoFactor ? (
+          <div className="auth-form-wrap" key="two-factor">
+            <p className="auth-kicker">Two-step verification</p>
+            <h2>Xác thực 2 bước.</h2>
+            <p className="auth-intro">
+              Mở ứng dụng Authenticator (Google Authenticator, Microsoft Authenticator…) và nhập mã 6 số đang hiển thị cho IRONIX.
+            </p>
+            <form className="auth-form" onSubmit={handleVerify}>
+              <div className="auth-field">
+                <input
+                  id="otp"
+                  name="otp"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9 ]{6,7}"
+                  maxLength={7}
+                  placeholder=" "
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  autoFocus
+                  required
+                />
+                <label htmlFor="otp">Mã xác thực</label>
+                <span className="auth-field-line" aria-hidden="true" />
+              </div>
+              <button className="auth-submit" type="submit" disabled={busy}>
+                <span>{busy ? "Đang kiểm tra…" : "Xác nhận"}</span>
+                <span className="auth-submit-arrow">→</span>
+              </button>
+              <button className="auth-back" type="button" onClick={() => setTwoFactor(null)}>
+                ← Quay lại đăng nhập
+              </button>
+            </form>
+          </div>
+        ) : (
         <div className="auth-form-wrap" key={`${mode}-${forgotMode}`}>
           <p className="auth-kicker">
             {forgotMode ? "Account recovery" : isSignup ? "Join IRONIX" : "Member access"}
@@ -161,7 +236,12 @@ export default function Auth({ mode }) {
               <AuthField id="fullName" label="Họ và tên" autoComplete="name" />
             )}
 
-            <AuthField id="email" label="Địa chỉ email" type="email" autoComplete="email" />
+            {isSignup || forgotMode ? (
+              <AuthField id="email" label="Địa chỉ email" type="email" autoComplete="email" />
+            ) : (
+              // Đăng nhập nhận cả email lẫn tên đăng nhập (tài khoản quản trị).
+              <AuthField id="email" label="Email hoặc tên đăng nhập" autoComplete="username" />
+            )}
 
             {isSignup && !forgotMode && (
               <AuthField id="phone" label="Số điện thoại" type="tel" autoComplete="tel" />
@@ -204,8 +284,8 @@ export default function Auth({ mode }) {
               </div>
             )}
 
-            <button className="auth-submit" type="submit">
-              <span>{forgotMode ? "Gửi hướng dẫn" : isSignup ? "Tạo tài khoản" : "Đăng nhập"}</span>
+            <button className="auth-submit" type="submit" disabled={busy}>
+              <span>{forgotMode ? (busy ? "Đang gửi…" : "Gửi hướng dẫn") : isSignup ? "Tạo tài khoản" : "Đăng nhập"}</span>
               <span className="auth-submit-arrow">→</span>
             </button>
 
@@ -220,6 +300,7 @@ export default function Auth({ mode }) {
             Bằng việc tiếp tục, bạn đồng ý với Điều khoản sử dụng và Chính sách bảo mật của IRONIX.
           </p>
         </div>
+        )}
       </section>
 
 <div className={`auth-toast ${toast ? "is-visible" : ""}`} aria-live="polite">

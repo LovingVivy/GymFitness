@@ -10,8 +10,8 @@ import {
   createBooking,
   getPtCredits,
   listMyBookings,
+  listBookableTrainers,
   listTrainerSlots,
-  listTrainers,
   purchasePtCredits
 } from "../lib/ptApi";
 import {
@@ -47,7 +47,6 @@ export default function PTBooking() {
   const [credits, setCredits] = useState({ purchased: 0, reserved: 0, used: 0, available: 0 });
   const [trainers, setTrainers] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [activity, setActivity] = useState("");
   const [selectedTrainer, setSelectedTrainer] = useState(null);
   const [slots, setSlots] = useState([]);
   const [selectedDay, setSelectedDay] = useState("");
@@ -60,6 +59,8 @@ export default function PTBooking() {
   const [checkout, setCheckout] = useState(null);
 
   const membership = user?.membership;
+  // Trang Lịch tập dẫn sang đây kèm ?date=YYYY-MM-DD để mở sẵn ngày hội viên vừa chọn.
+  const preferredDate = useMemo(() => new URLSearchParams(window.location.search).get("date") || "", []);
 
   const [notice, notify] = useToast(3800);
 
@@ -67,7 +68,7 @@ export default function PTBooking() {
     try {
       const [wallet, trainerList, myBookings] = await Promise.all([
         getPtCredits(),
-        listTrainers(),
+        listBookableTrainers(),
         listMyBookings()
       ]);
       setCredits(wallet);
@@ -88,20 +89,18 @@ export default function PTBooking() {
       try {
         const data = await listTrainerSlots(trainer.id);
         setSlots(data);
-        setSelectedDay((current) =>
-          data.some((slot) => slot.local_date === current) ? current : data[0]?.local_date || ""
-        );
+        setSelectedDay((current) => {
+          const wanted = [current, preferredDate].find(
+            (date) => date && data.some((slot) => slot.local_date === date)
+          );
+          return wanted || data[0]?.local_date || "";
+        });
       } catch (error) {
         notify(error.message || "Không tải được giờ trống của PT.");
         setSlots([]);
       }
     },
-    [notify]
-  );
-
-  const visibleTrainers = useMemo(
-    () => (activity ? trainers.filter((trainer) => trainer.specialties.includes(activity)) : trainers),
-    [activity, trainers]
+    [notify, preferredDate]
   );
 
   const days = useMemo(() => {
@@ -239,17 +238,15 @@ export default function PTBooking() {
         <section className="ptb-grid">
           <article className="ptb-card">
             <header><span>01</span><h2>Chọn huấn luyện viên</h2></header>
-            <div className="ptb-filter">
-              <button type="button" className={activity === "" ? "is-active" : ""} onClick={() => setActivity("")}>Tất cả</button>
-              <button type="button" className={activity === "GYM" ? "is-active" : ""} onClick={() => setActivity("GYM")}>Gym</button>
-              <button type="button" className={activity === "YOGA" ? "is-active" : ""} onClick={() => setActivity("YOGA")}>Yoga</button>
-            </div>
+            <p className="ptb-hint">
+              Gói {membership.name} đặt được huấn luyện viên có chuyên môn {membership.category}. Muốn tập loại hình khác, hãy đăng ký thêm gói tương ứng.
+            </p>
 
-            {visibleTrainers.length === 0 ? (
-              <p className="ptb-empty-text">Chưa có huấn luyện viên phù hợp đang nhận lịch.</p>
+            {trainers.length === 0 ? (
+              <p className="ptb-empty-text">Chưa có huấn luyện viên {membership.category} nào mở lịch nhận buổi. Vui lòng quay lại sau.</p>
             ) : (
               <ul className="ptb-trainers">
-                {visibleTrainers.map((trainer) => (
+                {trainers.map((trainer) => (
                   <li key={trainer.id} className={selectedTrainer?.id === trainer.id ? "is-selected" : ""}>
                     <button type="button" onClick={() => openTrainer(trainer)}>
                       <div>

@@ -6,3 +6,7 @@ alembic>=1.14,<2
 pydantic-settings>=2.7,<3
 redis>=5,<7
 cryptography>=44,<47
+# Xuất/nhập Excel, xuất PDF (hoá đơn, báo cáo), nhận file upload
+openpyxl>=3.1,<4
+reportlab>=4.2,<5
+python-multipart>=0.0.9,<1

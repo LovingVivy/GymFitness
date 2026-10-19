@@ -4,15 +4,16 @@
 
 Tài liệu này tổng hợp các luồng nghiệp vụ chính của hệ thống Gym Fitness Management. Đây là tài liệu tham chiếu khi thiết kế database, API, giao diện và kiểm thử.
 
-Hệ thống có ba nhóm người dùng chính:
+Hệ thống có bốn vai trò (ADR-019):
 
 | Vai trò | Trách nhiệm chính |
 | --- | --- |
-| `ADMIN` | Quản lý tài khoản, hội viên, PT, gói tập, giao dịch, sản phẩm, thiết bị, báo cáo và audit log |
+| `ADMIN` | Toàn quyền: tài khoản (kể cả nhân sự), gói tập, giao dịch, sản phẩm, báo cáo, nhật ký thao tác |
+| `MANAGER` | Vận hành hằng ngày: hội viên, check-in, xác nhận thu tiền, cửa hàng, báo cáo, xuất dữ liệu |
 | `USER` | Đăng ký hội viên, xem lịch Gym/Yoga, dùng QR vào phòng, mua và đặt PT, mua sản phẩm |
-| `PT` | Quản lý hồ sơ chuyên môn, lịch rảnh/bận, tiếp nhận và xử lý yêu cầu hướng dẫn |
+| `PT` | Quản lý hồ sơ chuyên môn, khai lịch làm việc hằng tuần, dạy và chốt buổi tập |
 
-Vai trò Manager trong đặc tả ban đầu được gộp vào Admin. Backend là nơi quyết định quyền truy cập; frontend chỉ có trách nhiệm hiển thị giao diện phù hợp.
+Quyền được kiểm tra ở backend theo từng màn hình và từng hành động (`app/core/permissions.py`); frontend chỉ dùng danh sách quyền để ẩn/hiện màn hình và nút.
 
 ---
 
@@ -29,8 +30,8 @@ Chọn gói tập
   -> tạo lịch Gym/Yoga
   -> cấp QR check-in
   -> tập luyện / đặt lớp / mua buổi PT
-  -> chọn PT trên lịch
-  -> PT chấp thuận hoặc từ chối
+  -> chọn PT và một ô giờ còn trống
+  -> buổi được xác nhận ngay (PT vẫn có thể huỷ kèm lý do)
   -> hoàn thành buổi tập
   -> nhắc gia hạn khi gần hết gói
 ```
@@ -222,97 +223,66 @@ Không cộng lượt PT khi payment chưa được xác nhận thành công.
 
 ---
 
-## 8. PT thiết lập lịch rảnh/bận
+## 8. PT khai lịch làm việc (ADR-015)
 
-PT sử dụng lịch cá nhân để tạo khung giờ:
+PT không bật/tắt từng khung giờ và không duyệt từng yêu cầu. Thay vào đó PT khai:
 
-- `AVAILABLE`: có thể nhận yêu cầu.
-- `BUSY`: PT chủ động đánh dấu bận.
-- `PENDING`: khung giờ đang được giữ cho một yêu cầu.
-- `BOOKED`: PT đã chấp thuận booking.
+- **Lịch tuần lặp lại**: các khung giờ làm việc theo thứ, ví dụ T2–T6 17:00–21:00 (giờ phòng tập, UTC+7). Mỗi khung dài ít nhất một buổi (60 phút) và không chồng lấn trong cùng ngày.
+- **Lịch nghỉ đột xuất**: khoảng thời gian không nhận buổi (ốm, việc riêng...).
 
-User chỉ nhìn thấy trạng thái khả dụng và thông tin chuyên môn cần thiết. User không được thấy tên hoặc dữ liệu của khách hàng khác trong lịch PT.
+Từ lịch tuần, hệ thống tự chia thành các ô 60 phút. Hội viên chỉ thấy ô còn trống: đã trừ lịch nghỉ và các buổi người khác đã đặt, không lộ tên khách khác.
 
-PT không được tạo các khung giờ chồng lấn. Khi một booking được chấp thuận, backend phải khóa khung giờ trong transaction để tránh nhận hai user cùng lúc.
+Đổi lịch tuần hoặc thêm lịch nghỉ **không tự huỷ** buổi đã đặt. Màn hình "Lịch của bạn" liệt kê các buổi bị lệch (`conflicts`) để PT chủ động huỷ kèm lý do; hội viên được hoàn lượt.
+
+PT chưa khai lịch thì không xuất hiện trong danh sách cho hội viên.
 
 ---
 
-## 9. User yêu cầu tập cùng PT
+## 9. Hội viên đặt buổi PT
 
-### 9.1. Tạo yêu cầu
-
-Tại một ngày trong lịch Gym/Yoga:
+### 9.1. Đặt một ô trống
 
 ```text
-Chọn ngày
-  -> chọn Đặt PT
-  -> lọc PT theo Gym/Yoga, chuyên môn và giờ rảnh
-  -> chọn PT và khung giờ
-  -> backend kiểm tra quyền và lượt PT
-  -> giữ một PT credit
-  -> tạo yêu cầu REQUESTED
-  -> gửi thông báo cho PT
+Chọn PT (chỉ PT có chuyên môn trùng loại hình gói, ADR-018)
+  -> xem các ô trống trong 14 ngày tới
+  -> chọn một ô
+  -> backend kiểm tra và giữ 1 lượt PT
+  -> buổi ở trạng thái ACCEPTED ngay
+  -> PT nhận thông báo
 ```
 
-Backend phải kiểm tra:
+Backend kiểm tra trong một transaction (khoá dòng PT để hai người không lấy cùng một ô):
 
-- Subscription của user đang `ACTIVE`.
-- Ngày được chọn nằm trong thời hạn gói.
-- PT phù hợp loại hình tập và đang `AVAILABLE`.
-- User còn đủ `available` PT credit.
-- User và PT không có booking bị trùng giờ.
+- Đặt trước ít nhất 2 giờ và không quá 14 ngày.
+- Đúng mốc của ô 60 phút trong lịch tuần, không rơi vào lịch nghỉ.
+- Hội viên có gói còn hiệu lực vào giờ tập và gói khớp chuyên môn PT.
+- Ô chưa có người đặt; hội viên không có buổi khác trùng giờ.
+- Hội viên còn lượt PT khả dụng.
 
-User không được chọn nhiều ngày hơn số lượt PT đã thanh toán. Frontend phải vô hiệu hóa thao tác khi hết lượt và backend vẫn phải kiểm tra lại bằng transaction.
+### 9.2. Huỷ buổi
 
-### 9.2. PT xử lý yêu cầu
+| Ai huỷ | Điều kiện | Lượt PT |
+| --- | --- | --- |
+| PT | Trước giờ bắt đầu, **bắt buộc nhập lý do** (thay cho bước "từ chối" cũ) | Luôn hoàn lại |
+| Hội viên | Trước giờ bắt đầu ít nhất 12 giờ | Hoàn lại |
+| Hội viên | Sát giờ (dưới 12 giờ) | Tính là đã dùng |
 
-PT nhận thông báo có user yêu cầu hướng dẫn và có thể:
+Bên còn lại nhận thông báo trong ứng dụng và email. Không bên nào huỷ được khi buổi đã bắt đầu.
 
-#### Chấp thuận
+### 9.3. Chốt buổi
 
-- Request chuyển từ `REQUESTED` sang `ACCEPTED`.
-- Khung giờ chuyển thành `BOOKED`.
-- PT credit tiếp tục nằm trong `reserved`.
-- Booking xuất hiện trên lịch của cả user và PT.
-- User nhận thông báo xác nhận.
+Sau giờ bắt đầu, PT chốt `COMPLETED` (đã dạy) hoặc `NO_SHOW` (hội viên vắng). Cả hai đều chuyển lượt từ `reserved` sang `used`.
 
-#### Từ chối
-
-- Request chuyển từ `REQUESTED` sang `REJECTED`.
-- PT bắt buộc chọn hoặc nhập lý do.
-- Khung giờ được mở lại nếu không có chặn khác.
-- PT credit được trả từ `reserved` về `available`.
-- User nhận thông báo kèm lý do.
-
-Lý do từ chối gợi ý:
-
-- Có lịch đột xuất.
-- Không phù hợp chuyên môn yêu cầu.
-- Khung giờ không còn khả dụng.
-- Đề nghị chọn thời gian khác.
-- Lý do khác.
-
-### 9.3. Vòng đời booking PT
+### 9.4. Vòng đời buổi PT
 
 ```text
-REQUESTED -> ACCEPTED -> COMPLETED
-          -> REJECTED
-          -> CANCELLED
-          -> EXPIRED
-
-ACCEPTED  -> CANCELLED
-          -> NO_SHOW
+ACCEPTED ──► COMPLETED   (PT, sau giờ bắt đầu)       trừ lượt
+         ├─► NO_SHOW     (PT, sau giờ bắt đầu)       trừ lượt
+         ├─► CANCELLED   (PT, trước giờ, có lý do)   hoàn lượt
+         └─► CANCELLED   (hội viên, trước giờ)       hoàn lượt nếu huỷ sớm
 ```
 
-Quy tắc PT credit:
-
-- Tạo request: chuyển 1 lượt từ `available` sang `reserved`.
-- PT từ chối hoặc request hết hạn: trả lượt về `available`.
-- Buổi tập hoàn thành: chuyển lượt từ `reserved` sang `used`.
-- User hủy đúng thời hạn: trả lượt theo chính sách.
-- User hủy muộn hoặc không đến: có thể chuyển lượt sang `used`.
-
-Mọi thay đổi lượt PT và trạng thái booking phải thực hiện trong cùng transaction.
+Mọi thay đổi lượt PT được ghi vào sổ cái `pt_credit_ledger` trong cùng transaction với trạng thái buổi.
 
 ---
 
@@ -328,9 +298,9 @@ Thông báo cho PT:
 
 Thông báo cho User:
 
-- PT chấp thuận yêu cầu.
-- PT từ chối kèm lý do.
-- Booking sắp diễn ra.
+- Buổi PT đã được đặt (xác nhận ngay).
+- PT huỷ buổi kèm lý do (kèm email, lượt PT được hoàn).
+- Buổi PT đã hoàn thành hoặc bị ghi vắng mặt.
 - Payment thành công hoặc thất bại.
 - Số lượt PT còn ít hoặc đã hết.
 - Gói hội viên sắp hết hạn.
@@ -373,7 +343,10 @@ Một user có thể có nhiều địa chỉ và một địa chỉ mặc đị
 
 ---
 
-## 12. Luồng Admin
+## 12. Luồng quản trị (Admin và Manager)
+
+Trang `/admin` hiển thị các tab theo quyền của tài khoản. Manager không thấy tab Nhật ký,
+chỉ xem gói tập, không huỷ được giao dịch và chỉ quản lý được tài khoản hội viên.
 
 Admin có thể:
 
@@ -394,54 +367,21 @@ Admin không được sửa trực tiếp số lượt PT mà không tạo trans
 
 ---
 
-## 13. Các trang chính dự kiến
+## 13. Các trang đã có
 
-### Public
-
-- `/`: Home.
-- `/products`: danh sách sản phẩm.
-- `/plans`: lựa chọn gói Gym/Yoga.
-- `/login`: đăng nhập.
-- `/signup`: đăng ký.
-
-### User
-
-- `/member/dashboard`: tổng quan hội viên.
-- `/member/profile`: hồ sơ, ảnh đại diện và địa chỉ.
-- `/member/membership`: gói hiện tại và gia hạn.
-- `/member/schedule`: lịch Gym/Yoga và thao tác đặt PT.
-- `/member/pt-credits`: mua và xem lịch sử lượt PT.
-- `/member/pt-bookings`: yêu cầu và lịch PT.
-- `/member/check-ins`: QR và lịch sử vào phòng.
-- `/member/orders`: đơn mua sản phẩm.
-- `/member/notifications`: thông báo.
-
-### PT
-
-- `/pt/dashboard`: tổng quan công việc.
-- `/pt/profile`: hồ sơ và chuyên môn.
-- `/pt/calendar`: thiết lập rảnh/bận.
-- `/pt/requests`: yêu cầu đang chờ xử lý.
-- `/pt/bookings`: lịch đã nhận.
-- `/pt/members`: user đang hướng dẫn.
-- `/pt/notifications`: thông báo.
-
-### Admin
-
-- `/admin/dashboard`: dashboard quản trị.
-- `/admin/users`: tài khoản và phân quyền.
-- `/admin/members`: hội viên.
-- `/admin/trainers`: PT.
-- `/admin/plans`: gói tập.
-- `/admin/subscriptions`: đăng ký hội viên.
-- `/admin/check-ins`: lịch sử điểm danh.
-- `/admin/bookings`: lớp học và PT booking.
-- `/admin/payments`: thanh toán và hóa đơn.
-- `/admin/products`: sản phẩm và tồn kho.
-- `/admin/orders`: đơn hàng.
-- `/admin/equipment`: thiết bị và bảo trì.
-- `/admin/reports`: báo cáo.
-- `/admin/audit-logs`: lịch sử hành động.
+| Đường dẫn | Ai dùng | Nội dung |
+| --- | --- | --- |
+| `/` | Mọi người | Trang chủ |
+| `/products` | Mọi người | Cửa hàng |
+| `/plans` | Mọi người | Chọn gói Gym/Yoga, thanh toán VietQR |
+| `/login`, `/signup` | Mọi người | Đăng nhập (kèm xác thực 2 bước), đăng ký, quên mật khẩu |
+| `/reset-password` | Mọi người | Đặt mật khẩu mới từ liên kết trong email |
+| `/profile` | Đã đăng nhập | Hồ sơ, gói hiện tại, bảo mật tài khoản (bật/tắt 2FA) |
+| `/schedule` | Hội viên | Lịch tập theo tháng |
+| `/pt-booking` | Hội viên | Mua lượt PT, đặt và huỷ buổi |
+| `/pt` | PT | Buổi dạy, chốt hoàn thành/vắng mặt |
+| `/pt-schedule` | PT | Lịch làm việc hằng tuần và lịch nghỉ |
+| `/admin` | Admin, Manager | Báo cáo, tài khoản, gói tập, cửa hàng, thanh toán, ra vào, nhật ký |
 
 ---
 
@@ -456,10 +396,10 @@ Admin không được sửa trực tiếp số lượt PT mà không tạo trans
 6. User thấy ngày bắt đầu/kết thúc và lịch Gym/Yoga.
 7. User mở QR và check-in phòng tập thành công.
 8. User mua một số buổi PT bằng QR thanh toán.
-9. PT thiết lập các khung giờ AVAILABLE/BUSY.
-10. User chọn ngày, PT và khung giờ trên lịch.
-11. Hệ thống giữ một PT credit và gửi thông báo cho PT.
-12. PT chấp thuận; booking xuất hiện trên lịch hai bên.
+9. PT khai lịch làm việc hằng tuần.
+10. User chọn PT và một ô giờ còn trống.
+11. Hệ thống giữ một PT credit, xác nhận buổi ngay và báo cho PT.
+12. Buổi xuất hiện trên lịch hai bên; PT có thể huỷ kèm lý do (hoàn lượt).
 13. Buổi tập hoàn thành; PT credit chuyển sang used.
 14. Khi gần hết hạn, user nhận thông báo và gia hạn gói.
 15. User mua sản phẩm bằng địa chỉ có sẵn hoặc địa chỉ mới.
@@ -482,3 +422,43 @@ Luồng được coi là đạt khi mọi bước thực hiện qua giao diện/
 - Thời gian lưu UTC và chuyển timezone khi hiển thị.
 - API danh sách phải có pagination, search, filter và sort phù hợp.
 - Mỗi luồng cần unit test, integration test và ít nhất một kịch bản E2E quan trọng.
+
+---
+
+## 16. Bảo mật tài khoản
+
+### 16.1. Quên mật khẩu
+
+```text
+Bấm "Quên mật khẩu?" ở trang đăng nhập
+  -> nhập email
+  -> luôn nhận thông báo chung (không lộ email nào đã đăng ký)
+  -> hàng đợi tác vụ tạo token và gửi email có liên kết /reset-password?token=...
+  -> mở liên kết, nhập mật khẩu mới
+  -> mật khẩu đổi, tài khoản được mở khoá, liên kết hết hiệu lực
+```
+
+- Database chỉ lưu SHA-256 của token; token gốc chỉ có trong email.
+- Liên kết dùng một lần, hết hạn sau 30 phút; yêu cầu mới làm liên kết cũ mất hiệu lực.
+
+### 16.2. Xác thực 2 bước (TOTP)
+
+```text
+Hồ sơ -> Bảo mật tài khoản -> Bật xác thực 2 bước
+  -> quét mã QR bằng Google/Microsoft Authenticator
+  -> nhập mã 6 số để xác nhận (khoá chỉ được lưu khi mã đúng)
+
+Đăng nhập: email + mật khẩu đúng
+  -> nhận challenge_token (5 phút), chưa có phiên đăng nhập
+  -> nhập mã 6 số -> nhận access token
+```
+
+Mã sai được tính vào bộ đếm khoá tài khoản như mật khẩu sai. Tắt 2FA cần cả mật khẩu và mã hiện tại.
+
+---
+
+## 17. Xuất / nhập dữ liệu và hoá đơn
+
+- **Xuất**: mỗi danh sách quản trị (tài khoản, giao dịch, ra vào, sản phẩm, doanh thu, tăng trưởng hội viên, nhật ký) có nút "Xuất file" ra Excel, CSV hoặc PDF theo đúng bộ lọc và thứ tự đang xem. File được tạo trong hàng đợi tác vụ; giao diện hỏi trạng thái rồi tự tải về.
+- **Nhập**: tab Cửa hàng nhận file `.xlsx`/`.csv` theo file mẫu; SKU đã có thì cập nhật, chưa có thì tạo mới; dòng lỗi được báo lại kèm số dòng.
+- **Hoá đơn**: mọi giao dịch đã thu tiền có hoá đơn PDF (số `HDyyyymm-nnnnn`). Hội viên nhận hoá đơn đính kèm email khi thanh toán xong và tải lại được ở màn hình thanh toán; quản trị tải ở tab Thanh toán.

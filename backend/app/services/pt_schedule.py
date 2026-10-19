@@ -22,6 +22,7 @@ from typing import Any
 from fastapi import status
 from sqlalchemy.orm import Session
 
+from app.core import cache
 from app.core.config import get_settings
 from app.core.gym_time import (
     gym_tz,
@@ -53,6 +54,7 @@ from app.services.pt import (
     raise_for_outcome,
     require_trainer_id,
 )
+from app.tasks import queue
 
 _SCHEDULE_ERRORS: dict[str, tuple[int, str]] = {
     "TRAINER_NOT_FOUND": (status.HTTP_403_FORBIDDEN, "Tài khoản này không phải huấn luyện viên."),
@@ -79,6 +81,10 @@ _SESSION_ERRORS: dict[str, tuple[int, str]] = {
     "NO_ACTIVE_SUBSCRIPTION": (
         status.HTTP_409_CONFLICT,
         "Cần có gói hội viên còn hiệu lực trong ngày tập để đặt PT.",
+    ),
+    "TRAINER_MISMATCH": (
+        status.HTTP_409_CONFLICT,
+        "Huấn luyện viên này không dạy loại hình trong gói tập của bạn.",
     ),
     "OUTSIDE_SCHEDULE": (
         status.HTTP_409_CONFLICT,
@@ -229,6 +235,8 @@ def save_my_schedule(db: Session, user_id: str, payload: ScheduleUpdateRequest) 
     )
     if not outcome.succeeded:
         raise_for_outcome(outcome, _SCHEDULE_ERRORS, "Không thể lưu lịch làm việc.")
+    # Danh sách PT công khai kèm các ngày làm việc.
+    cache.invalidate(cache.CATALOG)
     return get_my_schedule(db, user_id)
 
 
@@ -379,6 +387,13 @@ def cancel_session(
     )
     if not outcome.succeeded:
         raise_for_outcome(outcome, _SESSION_ERRORS, "Không thể huỷ buổi PT.")
+
+    queue.enqueue(
+        db,
+        "email.pt_session_cancelled",
+        {"booking_id": booking_id, "refunded": bool(outcome.data.get("refunded"))},
+        requested_by=user_id,
+    )
 
     if outcome.data.get("cancelled_by_role") == "TRAINER":
         bookings = list_trainer_bookings(db, user_id)

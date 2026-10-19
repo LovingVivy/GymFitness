@@ -93,6 +93,8 @@ class ProfileResponse(BaseModel):
     pt_credits: PtCreditsSummary = PtCreditsSummary()
     created_at: UtcDateTime | None = None
     last_login_at: UtcDateTime | None = None
+    permissions: list[str] = Field(default_factory=list)
+    two_factor_enabled: bool = False
 
 
 class ProfileUpdateRequest(BaseModel):

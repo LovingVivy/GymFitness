@@ -147,7 +147,7 @@ END$$
 
 -- ============================================================
 -- sp_auth_find_user_by_email
--- Lấy tài khoản kèm hồ sơ theo email để backend kiểm tra mật khẩu.
+-- Lấy tài khoản kèm hồ sơ theo email hoặc tên đăng nhập để kiểm tra mật khẩu.
 -- Trả về 0 dòng nếu không tìm thấy.
 -- ============================================================
 CREATE PROCEDURE sp_auth_find_user_by_email(IN p_email VARCHAR(254))
@@ -169,7 +169,8 @@ BEGIN
     p.weekly_training_sessions
   FROM users u
   LEFT JOIN user_profiles p ON p.user_id = u.id
-  WHERE u.email = p_email AND u.deleted_at IS NULL
+  -- Đăng nhập bằng email hoặc tên đăng nhập (cột username thêm ở 08_admin.sql).
+  WHERE (u.email = p_email OR u.username = p_email) AND u.deleted_at IS NULL
   LIMIT 1;
 END$$
 

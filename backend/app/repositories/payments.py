@@ -94,3 +94,9 @@ def finish_event(
 
 def notify_paid(db: Session, payment_id: str) -> None:
     call(db, NOTIFY_PAID, {"p_payment_id": payment_id})
+
+
+def issue_invoice(db: Session, *, invoice_id: str, payment_id: str) -> dict[str, Any]:
+    """Create the invoice of a PAID payment once; return it with everything a PDF needs."""
+    rows = call(db, "sp_invoice_issue", {"p_invoice_id": invoice_id, "p_payment_id": payment_id})
+    return rows[0] if rows else {"error_code": "INTERNAL_ERROR", "error_message": "Lỗi hệ thống."}

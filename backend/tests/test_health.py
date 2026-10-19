@@ -18,7 +18,11 @@ def test_ready_when_database_responds(monkeypatch) -> None:
     monkeypatch.setattr(health, "ping_database", lambda: None)
     response = client.get("/health/ready")
     assert response.status_code == 200
-    assert response.json() == {"status": "ready"}
+    assert response.json() == {
+        "status": "ready",
+        # Test chạy với REDIS_ENABLED=false (conftest).
+        "checks": {"database": "up", "redis": "disabled"},
+    }
 
 
 def test_ready_returns_503_when_database_fails(monkeypatch) -> None:

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Response
 
 from app.api.deps import CurrentUserDep, DbDep
 from app.schemas.payments import PaymentCheckoutResponse, SepayWebhookPayload, WebhookAck
 from app.schemas.profile import ProfileResponse
+from app.services import invoices as invoices_service
 from app.services import payments as payments_service
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -22,6 +23,22 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 def read_checkout(payment_id: str, user: CurrentUserDep, db: DbDep) -> PaymentCheckoutResponse:
     """Frontend gọi lặp lại endpoint này cho tới khi ``status`` chuyển sang ``PAID``."""
     return payments_service.get_checkout(db, user["id"], payment_id)
+
+
+@router.get(
+    "/{payment_id}/invoice",
+    summary="Hoá đơn PDF của giao dịch đã thanh toán",
+    response_class=Response,
+    responses={200: {"content": {"application/pdf": {}}}},
+)
+def download_invoice(payment_id: str, user: CurrentUserDep, db: DbDep) -> Response:
+    """Hội viên tải hoá đơn của mình; quản trị/quản lý tải được mọi hoá đơn."""
+    filename, content = invoices_service.pdf_for(db, user, payment_id)
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.post(

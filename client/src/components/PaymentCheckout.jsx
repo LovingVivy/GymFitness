@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { download } from "../lib/api";
+import { getToken } from "../lib/authStore";
 import { getCheckout, simulatePaid } from "../lib/paymentApi";
 import "./PaymentCheckout.css";
 
@@ -142,6 +144,14 @@ export default function PaymentCheckout({ paymentId, title, step, onPaid, onClos
             <span className="pay-check">✓</span>
             <h3>Đã nhận {money(checkout.amount)}</h3>
             <p>Thanh toán thành công. Đang cập nhật quyền lợi của bạn…</p>
+            <p>Hoá đơn đã được gửi vào email của bạn.</p>
+            <button
+              type="button"
+              className="pay-simulate"
+              onClick={() => download(`/payments/${checkout.id}/invoice`, { token: getToken(), fallbackName: "hoa-don.pdf" }).catch(() => {})}
+            >
+              Tải hoá đơn PDF
+            </button>
           </div>
         ) : (
           <div className="pay-body">

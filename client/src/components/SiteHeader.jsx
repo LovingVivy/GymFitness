@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { logout, useAuth } from "../lib/authStore";
 import { navigateTo } from "../lib/navigation";
+import { can, P } from "../lib/permissions";
 import { useNotifications } from "../lib/useNotifications";
 
 const relativeTime = (value) => {
@@ -93,6 +94,8 @@ export default function SiteHeader({ autoHide = false, heroSelector = "#home" })
   const user = useAuth();
   const hasMembership = user?.membership?.status === "ACTIVE";
   const isTrainer = user?.role === "PT";
+  // Quản trị viên và quản lý đều vào trang quản trị (màn hình hiện theo quyền).
+  const isAdmin = can(user, P.DASHBOARD_VIEW);
 
   useEffect(() => {
     const header = document.querySelector(".site-header");
@@ -136,7 +139,9 @@ export default function SiteHeader({ autoHide = false, heroSelector = "#home" })
       <nav className="nav" aria-label="Điều hướng chính">
         <a href="/">Home</a>
         <a href="/products">Sản phẩm</a>
-        {isTrainer ? (
+        {isAdmin ? (
+          <a href="/admin">Quản trị</a>
+        ) : isTrainer ? (
           <>
             <a href="/pt">Buổi dạy</a>
             <a href="/pt-schedule">Lịch của bạn</a>
@@ -160,7 +165,7 @@ export default function SiteHeader({ autoHide = false, heroSelector = "#home" })
         {user && <NotificationBell />}
         <span className="divider" aria-hidden="true" />
         {user ? (
-          <AccountMenu user={user} isTrainer={isTrainer} />
+          <AccountMenu user={user} isTrainer={isTrainer} isAdmin={isAdmin} />
         ) : (
           <a href="/login" aria-label="Đăng nhập" title="Đăng nhập">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="3.2" /><path d="M5.5 20c.6-4 2.8-6 6.5-6s5.9 2 6.5 6" /></svg>
@@ -175,11 +180,11 @@ export default function SiteHeader({ autoHide = false, heroSelector = "#home" })
  * Biểu tượng tài khoản kèm menu trượt xuống khi hover (hoặc khi focus bàn phím).
  * Menu đóng ngay sau khi chọn một mục để thao tác không bị vướng.
  */
-function AccountMenu({ user, isTrainer }) {
+function AccountMenu({ user, isTrainer, isAdmin }) {
   const [open, setOpen] = useState(false);
   const closeTimer = useRef(null);
-  const profileHref = isTrainer ? "/pt" : "/profile";
-  const profileLabel = isTrainer ? "Buổi dạy" : "Hồ sơ hội viên";
+  const profileHref = isAdmin ? "/admin" : isTrainer ? "/pt" : "/profile";
+  const profileLabel = isAdmin ? "Trang quản trị" : isTrainer ? "Buổi dạy" : "Hồ sơ hội viên";
 
   useEffect(() => () => window.clearTimeout(closeTimer.current), []);
 
@@ -224,6 +229,11 @@ function AccountMenu({ user, isTrainer }) {
         <a role="menuitem" href={profileHref} onClick={() => setOpen(false)}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="3.2" /><path d="M5.5 20c.6-4 2.8-6 6.5-6s5.9 2 6.5 6" /></svg>
           {profileLabel}
+        </a>
+
+        <a role="menuitem" href="/profile#security" onClick={() => setOpen(false)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2" /><path d="M8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7" /></svg>
+          Bảo mật tài khoản
         </a>
 
         {isTrainer ? (

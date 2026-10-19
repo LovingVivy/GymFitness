@@ -1,3 +1,5 @@
+import logging
+import time
 from contextlib import asynccontextmanager
 from typing import Any
 from uuid import uuid4
@@ -10,9 +12,23 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.router import api_router
 from app.core.config import get_settings
-from app.db.session import engine
+from app.core.logging import configure_logging, request_id_var
+from app.core.rate_limit import client_ip, rate_limit_middleware
+from app.db.session import SessionLocal, engine
+from app.services import admin as admin_service
 
 settings = get_settings()
+configure_logging(settings.log_level, settings.json_logs)
+logger = logging.getLogger(__name__)
+access_logger = logging.getLogger("app.access")
+
+# Header bảo mật mặc định; route nào tự đặt (vd. /files có CSP riêng) thì giữ nguyên.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
 
 
 def _serializable_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -34,8 +50,18 @@ def _serializable_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    _bootstrap_admin()
     yield
     engine.dispose()
+
+
+def _bootstrap_admin() -> None:
+    """Tạo tài khoản admin mặc định; lỗi database không được chặn API khởi động."""
+    try:
+        with SessionLocal() as db:
+            admin_service.ensure_default_admin(db)
+    except Exception:  # pragma: no cover - phụ thuộc môi trường
+        logger.exception("Không tạo được tài khoản admin mặc định.")
 
 
 def create_app() -> FastAPI:
@@ -54,13 +80,44 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Thứ tự: middleware khai báo sau chạy trước. Request id + access log bọc ngoài
+    # cùng để cả request bị rate limit (429) cũng có log.
+    application.middleware("http")(rate_limit_middleware)
+
     @application.middleware("http")
     async def attach_request_id(request: Request, call_next):
         supplied_id = request.headers.get("X-Request-ID", "").strip()
         request_id = supplied_id if 0 < len(supplied_id) <= 128 else str(uuid4())
         request.state.request_id = request_id
-        response = await call_next(request)
+        token = request_id_var.set(request_id)
+        started = time.perf_counter()
+        status_code = 500
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+        finally:
+            duration_ms = round((time.perf_counter() - started) * 1000, 1)
+            path = request.url.path
+            level = logging.DEBUG if path.startswith("/health") else logging.INFO
+            access_logger.log(
+                level,
+                "%s %s %s",
+                request.method,
+                path,
+                status_code,
+                extra={
+                    "method": request.method,
+                    "path": path,
+                    "status": status_code,
+                    "duration_ms": duration_ms,
+                    "client_ip": client_ip(request),
+                    "user_id": getattr(request.state, "user_id", None),
+                },
+            )
+            request_id_var.reset(token)
         response.headers["X-Request-ID"] = request_id
+        for header, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(header, value)
         return response
 
     @application.exception_handler(StarletteHTTPException)

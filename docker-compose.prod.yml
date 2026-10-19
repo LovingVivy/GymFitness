@@ -1,0 +1,102 @@
+# Triển khai bằng image đã build sẵn trên GitHub Container Registry (job "deploy" của CI).
+# Không có dữ liệu mẫu, không có Mailpit; email gửi qua SMTP thật cấu hình trong .env.
+#
+#   IMAGE_PREFIX=ghcr.io/<tài-khoản>/gymfitness IMAGE_TAG=latest \
+#     docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Lần đầu: nạp database/01…09 và 11 (bỏ 10_seed_demo) — xem docs/DEPLOYMENT.md.
+
+x-backend-env: &backend-env
+  APP_ENV: production
+  DOCS_ENABLED: ${DOCS_ENABLED:-false}
+  MYSQL_HOST: mysql
+  MYSQL_PORT: 3306
+  MYSQL_USER: ${MYSQL_USER}
+  MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  MYSQL_DATABASE: ${MYSQL_DATABASE:-gymfitness}
+  REDIS_URL: redis://redis:6379/0
+  FRONTEND_ORIGINS: ${FRONTEND_ORIGINS}
+  FRONTEND_BASE_URL: ${FRONTEND_BASE_URL}
+  LOG_FORMAT: json
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+  PAYMENT_BANK_CODE: ${PAYMENT_BANK_CODE:-}
+  PAYMENT_ACCOUNT_NO: ${PAYMENT_ACCOUNT_NO:-}
+  PAYMENT_ACCOUNT_NAME: ${PAYMENT_ACCOUNT_NAME:-}
+  PAYMENT_CODE_PREFIX: ${PAYMENT_CODE_PREFIX:-IRX}
+  SEPAY_WEBHOOK_API_KEY: ${SEPAY_WEBHOOK_API_KEY:-}
+  ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+  ADMIN_EMAIL: ${ADMIN_EMAIL}
+  ADMIN_DEFAULT_PASSWORD: ${ADMIN_DEFAULT_PASSWORD:-}
+  SMTP_HOST: ${SMTP_HOST}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USERNAME: ${SMTP_USERNAME}
+  SMTP_PASSWORD: ${SMTP_PASSWORD}
+  SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+  MAIL_FROM: ${MAIL_FROM}
+  JOB_QUEUE_MODE: redis
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-gymfitness}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    image: ${IMAGE_PREFIX}-backend:${IMAGE_TAG:-latest}
+    restart: always
+    environment: *backend-env
+    volumes:
+      - app_storage:/app/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    image: ${IMAGE_PREFIX}-backend:${IMAGE_TAG:-latest}
+    restart: always
+    command: ["python", "-m", "app.tasks.worker"]
+    environment: *backend-env
+    volumes:
+      - app_storage:/app/storage
+    healthcheck:
+      disable: true
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: ${IMAGE_PREFIX}-frontend:${IMAGE_TAG:-latest}
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  app_storage:

@@ -1,82 +1,339 @@
 {
   "info": {
     "name": "GymFitness API",
-    "description": "Collection cho backend GymFitness (FastAPI).\n\nBiến `baseUrl` mặc định là http://localhost:8000. Sau khi gọi Register hoặc Login thành công, `access_token` được lưu tự động vào biến collection.\n\nLưu ý: mọi truy vấn của chức năng đăng ký/đăng nhập nằm trong MySQL stored procedures (database/03_procedures.sql). Nhớ chạy file đó trước khi test.",
+    "description": "Bộ request cho toàn bộ API của backend GymFitness (FastAPI).\n\n**Chuẩn bị**\n\n1. Chạy backend ở môi trường development và nạp đủ các file trong `database/` (01 → 11).\n2. Mở tab *Variables* của collection, điền `admin_password` bằng `ADMIN_DEFAULT_PASSWORD` trong `.env`.\n3. Nếu backend không chạy ở `http://localhost:8000` (Docker: `http://localhost:8080`), sửa `baseUrl`.\n\n**Cách chạy**\n\nCác thư mục được đánh số theo thứ tự phụ thuộc: chạy cả collection bằng *Run collection*, hoặc chạy lần lượt từ trên xuống. Request trước lưu token và id vào biến collection cho request sau, nên không cần chép tay.\n\n- `access_token`: hội viên do collection tự đăng ký (email ngẫu nhiên mỗi lần chạy). Thư mục 03 bật rồi tắt xác thực 2 bước cho tài khoản này; mã 6 số được tính trong pre-request.\n- `pt_token`: PT chuyên môn Gym do quản trị tạo ở thư mục 02 (không dùng tài khoản seed). Thư mục 07 khai lịch cho PT này, thư mục 11 xoá nó khi chạy xong.\n- `admin_token`: quản trị viên mặc định.\n\nĐăng nhập, đăng ký và quên mật khẩu bị giới hạn 10 request/phút mỗi IP; chạy collection quá nhanh nhiều lần liên tiếp có thể nhận 429 `RATE_LIMITED`.\n\nMọi lỗi trả theo khuôn `{\"error\": {\"code\", \"message\", \"details\"}}`. Tài liệu OpenAPI đầy đủ ở `{{baseUrl}}/docs`.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:8000",
-      "type": "string"
+      "type": "string",
+      "description": "Địa chỉ backend (Docker: http://localhost:8080)."
+    },
+    {
+      "key": "member_password",
+      "value": "password123",
+      "type": "string",
+      "description": "Mật khẩu cho tài khoản thử do collection tự đăng ký."
+    },
+    {
+      "key": "pt_email",
+      "value": "",
+      "type": "string",
+      "description": "Tài khoản PT trong database/04_seed.sql."
+    },
+    {
+      "key": "pt_password",
+      "value": "postman-pt-123",
+      "type": "string",
+      "description": "Mật khẩu tài khoản PT seed."
+    },
+    {
+      "key": "pt_user_id",
+      "value": ""
+    },
+    {
+      "key": "admin_login",
+      "value": "admin",
+      "type": "string",
+      "description": "Tên đăng nhập hoặc email của quản trị viên (ADMIN_USERNAME)."
+    },
+    {
+      "key": "admin_password",
+      "value": "",
+      "type": "string",
+      "description": "Điền giá trị ADMIN_DEFAULT_PASSWORD trong .env."
+    },
+    {
+      "key": "sepay_api_key",
+      "value": "",
+      "type": "string",
+      "description": "Điền SEPAY_WEBHOOK_API_KEY nếu muốn thử webhook."
+    },
+    {
+      "key": "reset_token",
+      "value": "",
+      "type": "string",
+      "description": "Dán token trong email đặt lại mật khẩu."
     },
     {
       "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "member_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "member_phone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "file_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "two_factor_secret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "setup_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "challenge_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "totp_code",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "plan_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "webhook_event_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "trainer_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "time_off_start",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "time_off_end",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "time_off_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slot_start_at",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pt_payment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "booking_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notification_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_new_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_new_phone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_plan_code",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_plan_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_plan_version",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "checkin_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "confirm_payment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "void_payment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_product_name",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_product_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_product_version",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "export_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "export_download_url",
       "value": "",
       "type": "string"
     }
   ],
   "item": [
     {
-      "name": "Health",
+      "name": "01 · Health",
       "item": [
         {
           "name": "Live",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/health/live",
-              "host": ["{{baseUrl}}"],
-              "path": ["health", "live"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health",
+                "live"
+              ]
             },
-            "description": "Kiểm tra tiến trình backend còn chạy. Không cần database."
-          },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Live\n\nTiến trình backend còn chạy. Không chạm database."
+          }
+        },
+        {
+          "name": "Ready",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('status = alive', () => pm.expect(pm.response.json().status).to.eql('alive'));"
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
-          ]
-        },
-        {
-          "name": "Ready",
+          ],
           "request": {
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/health/ready",
-              "host": ["{{baseUrl}}"],
-              "path": ["health", "ready"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health",
+                "ready"
+              ]
             },
-            "description": "Kiểm tra backend và kết nối database. Trả 503 nếu database không sẵn sàng."
-          },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ready. MySQL is required; Redis is reported but optional (the API degrades without it).\n\nMySQL kết nối được (bắt buộc) và trạng thái Redis (`up`/`down`/`disabled`). Trả 503 nếu MySQL không sẵn sàng."
+          }
+        }
+      ],
+      "description": "Kiểm tra tiến trình và kết nối database. Không cần đăng nhập."
+    },
+    {
+      "name": "02 · Xác thực",
+      "item": [
+        {
+          "name": "Đăng ký hội viên",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('member_email', 'postman.' + Date.now() + '' + Math.floor(100 + Math.random() * 900) + '@example.com');",
+                  "pm.collectionVariables.set('member_phone', '09' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0'));"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('status = ready', () => pm.expect(pm.response.json().status).to.eql('ready'));"
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('access_token', body.access_token);",
+                  "}"
                 ]
               }
             }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Auth",
-      "item": [
-        {
-          "name": "Register",
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -85,22 +342,1110 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Nguyen Van A\",\n  \"email\": \"vana@example.com\",\n  \"phone\": \"0901234567\",\n  \"password\": \"password123\"\n}",
+              "raw": "{\n  \"full_name\": \"Nguyễn Văn A\",\n  \"email\": \"{{member_email}}\",\n  \"phone\": \"{{member_phone}}\",\n  \"password\": \"{{member_password}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Register\n\nEmail và số điện thoại được sinh ngẫu nhiên ở pre-request nên chạy lại nhiều lần không bị trùng. Token được lưu vào `access_token`."
+          }
+        },
+        {
+          "name": "Đăng ký — trùng email (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "register"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
             },
-            "description": "Đăng ký tài khoản mới. Gọi procedure sp_auth_register.\n\nQuy tắc: full_name không rỗng, password tối thiểu 8 ký tự, email phải hợp lệ. Email/phone trùng trả 409."
-          },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Nguyễn Văn A\",\n  \"email\": \"{{member_email}}\",\n  \"phone\": \"{{member_phone}}\",\n  \"password\": \"{{member_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Register\n\nGửi lại đúng email vừa đăng ký."
+          }
+        },
+        {
+          "name": "Đăng ký — thiếu dữ liệu (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"thieu-du-lieu@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Register\n\nThiếu `full_name` và `password`; lỗi trả theo khuôn `{\"error\": {...}}`."
+          }
+        },
+        {
+          "name": "Đăng nhập hội viên",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('access_token', body.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{member_email}}\",\n  \"password\": \"{{member_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Đăng nhập bằng email hoặc tên đăng nhập. Tài khoản bật xác thực 2 bước nhận ``challenge_token`` thay cho access token.\n\nTài khoản bật xác thực 2 bước nhận `challenge_token` thay cho `access_token` (xem thư mục 03)."
+          }
+        },
+        {
+          "name": "Đăng nhập — sai mật khẩu (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{member_email}}\",\n  \"password\": \"sai-mat-khau\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Đăng nhập bằng email hoặc tên đăng nhập. Tài khoản bật xác thực 2 bước nhận ``challenge_token`` thay cho access token.\n\nSai 5 lần liên tiếp tài khoản bị khoá 15 phút (429 ACCOUNT_LOCKED). Đăng nhập còn bị giới hạn 10 request/phút mỗi IP (429 RATE_LIMITED)."
+          }
+        },
+        {
+          "name": "Đăng nhập quản trị",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('admin_token', body.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_login}}\",\n  \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Đăng nhập bằng email hoặc tên đăng nhập. Tài khoản bật xác thực 2 bước nhận ``challenge_token`` thay cho access token.\n\nĐiền biến `admin_password` bằng giá trị `ADMIN_DEFAULT_PASSWORD` trong `.env` trước khi gọi. `admin_login` nhận tên đăng nhập hoặc email. Token lưu vào `admin_token`."
+          }
+        },
+        {
+          "name": "Quản trị tạo PT cho bộ test",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('pt_email', 'postman.pt.gym.' + Date.now() + '' + Math.floor(100 + Math.random() * 900) + '@example.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test('Là PT chuyên môn Gym', () => {",
+                  "    pm.expect(body.role).to.eql('PT');",
+                  "    pm.expect(body.specialties).to.include('GYM');",
+                  "  });",
+                  "  pm.collectionVariables.set('pt_user_id', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"PT Postman (Gym)\",\n  \"email\": \"{{pt_email}}\",\n  \"password\": \"{{pt_password}}\",\n  \"role\": \"PT\",\n  \"specialties\": [\n    \"GYM\",\n    \"MUSCLE_GAIN\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Collection tự tạo một PT chuyên môn Gym để dùng ở thư mục 07–08, thay cho tài khoản PT seed (có thể đã bị xoá). PT này được xoá ở thư mục cuối. Hội viên do collection đăng ký mua gói Gym nên chỉ đặt được PT Gym (ADR-018)."
+          }
+        },
+        {
+          "name": "Đăng nhập PT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('pt_token', body.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{pt_email}}\",\n  \"password\": \"{{pt_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Đăng nhập bằng PT vừa được quản trị tạo ở request trước. Token lưu vào `pt_token`."
+          }
+        }
+      ],
+      "description": "Đăng ký, đăng nhập và lấy token cho ba vai trò: hội viên, PT, quản trị."
+    },
+    {
+      "name": "03 · Bảo mật tài khoản",
+      "item": [
+        {
+          "name": "Quên mật khẩu",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Đăng nhập/đăng ký/quên mật khẩu bị giới hạn 10 request mỗi phút (theo phút đồng hồ).",
+                  "// Thư mục 02 đã dùng 7 lượt, nên chờ sang phút mới để 4 request của thư mục này không bị 429.",
+                  "const waitMs = 60000 - (Date.now() % 60000) + 1000;",
+                  "console.log('Chờ ' + Math.round(waitMs / 1000) + ' giây cho giới hạn đăng nhập mỗi phút...');",
+                  "setTimeout(() => {}, waitMs);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 202', () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{member_email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Gửi email đặt lại mật khẩu. Luôn trả 202 để không lộ email nào đã đăng ký. Email được gửi qua hàng đợi tác vụ.\n\nLuôn trả 202 để không lộ email nào đã đăng ký. Email chứa liên kết `/reset-password?token=...` được gửi qua hàng đợi tác vụ (xem Mailpit ở http://localhost:8025 khi chạy Docker).\n\nPre-request chờ tới đầu phút kế tiếp (tối đa khoảng 60 giây) vì đăng nhập/đăng ký/quên mật khẩu bị giới hạn 10 request mỗi phút cho mỗi IP."
+          }
+        },
+        {
+          "name": "Đặt lại mật khẩu",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Chưa dán token từ email: gửi token giả để kiểm tra nhánh TOKEN_INVALID (400).",
+                  "if (!pm.collectionVariables.get('reset_token')) {",
+                  "  pm.variables.set('reset_token', 'postman-chua-co-token-tu-email');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 hoặc 400', () => pm.expect(pm.response.code).to.be.oneOf([200, 400]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"password\": \"{{member_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Đặt mật khẩu mới bằng token trong email\n\nDán phần `token=...` trong email vào biến `reset_token`. Token sai/đã dùng trả 400 `TOKEN_INVALID`, quá 30 phút trả 400 `TOKEN_EXPIRED`."
+          }
+        },
+        {
+          "name": "Tạo khoá 2FA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('two_factor_secret', body.secret);",
+                  "  pm.collectionVariables.set('setup_token', body.setup_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/2fa/setup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "2fa",
+                "setup"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Tạo khoá xác thực 2 bước (chưa bật). Trả mã QR cho ứng dụng Authenticator; chỉ bật sau khi gọi ``/2fa/enable`` với mã đúng.\n\nTrả `secret`, `otpauth_uri`, mã QR dạng SVG và `setup_token` (10 phút). Chưa bật cho tới khi gọi bước kích hoạt với mã đúng."
+          }
+        },
+        {
+          "name": "Bật 2FA",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Tính mã TOTP 6 số (RFC 6238) từ two_factor_secret, giống ứng dụng Authenticator.",
+                  "const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';",
+                  "const secret = (pm.collectionVariables.get('two_factor_secret') || '').toUpperCase();",
+                  "let bits = '';",
+                  "for (const ch of secret.replace(/=+$/, '')) {",
+                  "  const value = alphabet.indexOf(ch);",
+                  "  if (value >= 0) bits += value.toString(2).padStart(5, '0');",
+                  "}",
+                  "let keyHex = '';",
+                  "for (let i = 0; i + 4 <= bits.length; i += 4) keyHex += parseInt(bits.substr(i, 4), 2).toString(16);",
+                  "const counter = Math.floor(Date.now() / 1000 / 30).toString(16).padStart(16, '0');",
+                  "const digest = CryptoJS.HmacSHA1(CryptoJS.enc.Hex.parse(counter), CryptoJS.enc.Hex.parse(keyHex)).toString();",
+                  "const offset = parseInt(digest.slice(-1), 16);",
+                  "const code = (parseInt(digest.substr(offset * 2, 8), 16) & 0x7fffffff) % 1000000;",
+                  "pm.collectionVariables.set('totp_code', String(code).padStart(6, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/2fa/enable",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "2fa",
+                "enable"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"setup_token\": \"{{setup_token}}\",\n  \"code\": \"{{totp_code}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Bật xác thực 2 bước"
+          }
+        },
+        {
+          "name": "Đăng nhập — bước 1 (có 2FA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('challenge_token', body.challenge_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{member_email}}\",\n  \"password\": \"{{member_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Đăng nhập bằng email hoặc tên đăng nhập. Tài khoản bật xác thực 2 bước nhận ``challenge_token`` thay cho access token.\n\nMật khẩu đúng nhưng tài khoản có 2FA: nhận `challenge_token` (5 phút), chưa có phiên đăng nhập."
+          }
+        },
+        {
+          "name": "Đăng nhập — bước 2: mã xác thực",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Tính mã TOTP 6 số (RFC 6238) từ two_factor_secret, giống ứng dụng Authenticator.",
+                  "const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';",
+                  "const secret = (pm.collectionVariables.get('two_factor_secret') || '').toUpperCase();",
+                  "let bits = '';",
+                  "for (const ch of secret.replace(/=+$/, '')) {",
+                  "  const value = alphabet.indexOf(ch);",
+                  "  if (value >= 0) bits += value.toString(2).padStart(5, '0');",
+                  "}",
+                  "let keyHex = '';",
+                  "for (let i = 0; i + 4 <= bits.length; i += 4) keyHex += parseInt(bits.substr(i, 4), 2).toString(16);",
+                  "const counter = Math.floor(Date.now() / 1000 / 30).toString(16).padStart(16, '0');",
+                  "const digest = CryptoJS.HmacSHA1(CryptoJS.enc.Hex.parse(counter), CryptoJS.enc.Hex.parse(keyHex)).toString();",
+                  "const offset = parseInt(digest.slice(-1), 16);",
+                  "const code = (parseInt(digest.substr(offset * 2, 8), 16) & 0x7fffffff) % 1000000;",
+                  "pm.collectionVariables.set('totp_code', String(code).padStart(6, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('access_token', body.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/2fa/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "2fa",
+                "verify"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challenge_token\": \"{{challenge_token}}\",\n  \"code\": \"{{totp_code}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Bước 2 của đăng nhập: mã xác thực"
+          }
+        },
+        {
+          "name": "Tắt 2FA",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Tính mã TOTP 6 số (RFC 6238) từ two_factor_secret, giống ứng dụng Authenticator.",
+                  "const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';",
+                  "const secret = (pm.collectionVariables.get('two_factor_secret') || '').toUpperCase();",
+                  "let bits = '';",
+                  "for (const ch of secret.replace(/=+$/, '')) {",
+                  "  const value = alphabet.indexOf(ch);",
+                  "  if (value >= 0) bits += value.toString(2).padStart(5, '0');",
+                  "}",
+                  "let keyHex = '';",
+                  "for (let i = 0; i + 4 <= bits.length; i += 4) keyHex += parseInt(bits.substr(i, 4), 2).toString(16);",
+                  "const counter = Math.floor(Date.now() / 1000 / 30).toString(16).padStart(16, '0');",
+                  "const digest = CryptoJS.HmacSHA1(CryptoJS.enc.Hex.parse(counter), CryptoJS.enc.Hex.parse(keyHex)).toString();",
+                  "const offset = parseInt(digest.slice(-1), 16);",
+                  "const code = (parseInt(digest.substr(offset * 2, 8), 16) & 0x7fffffff) % 1000000;",
+                  "pm.collectionVariables.set('totp_code', String(code).padStart(6, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/2fa/disable",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "2fa",
+                "disable"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"{{member_password}}\",\n  \"code\": \"{{totp_code}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Tắt xác thực 2 bước. Cần cả mật khẩu và mã hiện tại để tránh bị tắt khi lộ phiên đăng nhập.\n\nCần cả mật khẩu và mã hiện tại."
+          }
+        }
+      ],
+      "description": "Quên/đặt lại mật khẩu và xác thực 2 bước (TOTP). Mã 6 số được tính ngay trong pre-request từ `two_factor_secret`, giống ứng dụng Authenticator."
+    },
+    {
+      "name": "04 · Hồ sơ",
+      "item": [
+        {
+          "name": "Xem hồ sơ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Hồ sơ hội viên hiện tại. Thông tin cá nhân, ảnh đại diện, hồ sơ hội viên và gói đang đăng ký.\n\nKèm `permissions` (quyền theo vai trò) và `two_factor_enabled`."
+          }
+        },
+        {
+          "name": "Cập nhật hồ sơ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Nguyễn Văn A\",\n  \"date_of_birth\": \"1998-05-20\",\n  \"gender\": \"MALE\",\n  \"height_cm\": 172,\n  \"weight_kg\": 68.5,\n  \"experience_level\": \"BASIC\",\n  \"fitness_goal\": \"MUSCLE_GAIN\",\n  \"weekly_training_sessions\": 4,\n  \"emergency_contact_name\": \"Nguyễn Thị B\",\n  \"emergency_contact_phone\": \"0912345678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Cập nhật hồ sơ hội viên. Cập nhật thông tin cá nhân, thể chất và mục tiêu. Trường bỏ trống giữ nguyên."
+          }
+        },
+        {
+          "name": "Cập nhật ảnh đại diện",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('file_id', (body.avatar_url || '').split('/').pop());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "avatar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Cập nhật ảnh đại diện. Nhận ảnh dạng data URL, lưu ra storage nội bộ và gắn vào hồ sơ.\n\nẢnh gửi dạng data URL base64 (PNG, JPEG, WebP hoặc GIF, dưới 2MB). Id tệp lưu vào `file_id`."
+          }
+        },
+        {
+          "name": "Tải tệp đã lưu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/{{file_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "files",
+                "{{file_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Tải nội dung tệp đã lưu\n\nTệp riêng tư chỉ chủ sở hữu tải được (ảnh đại diện, file xuất báo cáo)."
+          }
+        }
+      ],
+      "description": "Hồ sơ của người đang đăng nhập."
+    },
+    {
+      "name": "05 · Gói tập và thanh toán",
+      "item": [
+        {
+          "name": "Danh sách gói tập",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('plan_id', body.find(p => p.code === 'GYM_YEARLY').id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "plans"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Danh sách gói tập đang mở bán\n\nCông khai, có cache. Lưu id gói `GYM_YEARLY` vào `plan_id`."
+          }
+        },
+        {
+          "name": "Đăng ký gói (kèm 3 buổi PT)",
           "event": [
             {
               "listen": "test",
@@ -108,17 +1453,14 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.test('co access_token', () => pm.expect(body.access_token).to.be.a('string').and.not.empty);",
-                  "pm.test('role = USER', () => pm.expect(body.user.role).to.eql('USER'));",
-                  "pm.collectionVariables.set('access_token', body.access_token);"
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('payment_id', body.payment.id);",
+                  "}"
                 ]
               }
             }
-          ]
-        },
-        {
-          "name": "Login",
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -127,22 +1469,273 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscriptions"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"vana@example.com\",\n  \"password\": \"password123\"\n}",
+              "raw": "{\n  \"plan_id\": \"{{plan_id}}\",\n  \"pt_sessions\": 3\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
             },
-            "description": "Đăng nhập. Gọi procedure sp_auth_find_user_by_email và sp_auth_mark_login_success.\n\nSai mật khẩu 5 lần sẽ tạm khoá tài khoản 15 phút (HTTP 429, mã ACCOUNT_LOCKED)."
-          },
+            "description": "Tạo đăng ký gói (payment PENDING). Tạo payment PENDING và subscription PENDING. Chưa kích hoạt quyền lợi.\n\nTạo subscription PENDING và payment PENDING. `pt_sessions` là số buổi PT mua kèm trong cùng một giao dịch (0 = không mua)."
+          }
+        },
+        {
+          "name": "Thông tin chuyển khoản",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{payment_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{payment_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Thông tin chuyển khoản QR và trạng thái thanh toán. Frontend gọi lặp lại endpoint này cho tới khi ``status`` chuyển sang ``PAID``.\n\nFrontend gọi lặp lại endpoint này cho tới khi `status` là `PAID`."
+          }
+        },
+        {
+          "name": "Giả lập đã thanh toán",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{payment_id}}/mark-paid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{payment_id}}",
+                "mark-paid"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Giả lập đã nhận tiền (chỉ dev) hoặc Admin xác nhận thủ công. Hội viên chỉ dùng được khi ``allow_payment_simulation`` bật và payment là của mình.\n\nỞ production quyền lợi chỉ được kích hoạt qua webhook ngân hàng hoặc Admin (ADR-004).\n\nChỉ dùng được khi backend chạy ở môi trường development; production trả 403 và quyền lợi chỉ kích hoạt qua webhook ngân hàng hoặc quản trị viên. Email biên nhận kèm hoá đơn PDF được gửi qua hàng đợi tác vụ."
+          }
+        },
+        {
+          "name": "Hoá đơn PDF",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{payment_id}}/invoice",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{payment_id}}",
+                "invoice"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Hoá đơn PDF của giao dịch đã thanh toán. Hội viên tải hoá đơn của mình; quản trị/quản lý tải được mọi hoá đơn.\n\nSố hoá đơn `HDyyyymm-nnnnn`. Hội viên chỉ tải được hoá đơn của mình; giao dịch chưa thu tiền trả 409 `PAYMENT_NOT_PAID`."
+          }
+        },
+        {
+          "name": "Webhook SePay",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('webhook_event_id', 'postman' + Date.now() + '' + Math.floor(100 + Math.random() * 900));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 hoặc 401 hoặc 503', () => pm.expect(pm.response.code).to.be.oneOf([200, 401, 503]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Apikey {{sepay_api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/webhooks/sepay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "webhooks",
+                "sepay"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{webhook_event_id}}\",\n  \"gateway\": \"MBBank\",\n  \"transactionDate\": \"2026-09-28 10:00:00\",\n  \"accountNumber\": \"0123456789\",\n  \"code\": null,\n  \"content\": \"MBVCB.123.IRX260928A1B2C3D4.CT tu NGUYEN VAN A\",\n  \"transferType\": \"in\",\n  \"transferAmount\": 500000,\n  \"accumulated\": 0,\n  \"subAccount\": null,\n  \"referenceCode\": \"FT{{webhook_event_id}}\",\n  \"description\": \"MBVCB.123.IRX260928A1B2C3D4.CT tu NGUYEN VAN A\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Webhook SePay báo có tiền vào tài khoản. Xác thực API key, khớp mã chuyển khoản + số tiền rồi mới kích hoạt quyền lợi.\n\nNgân hàng gọi endpoint này khi có tiền vào. Điền `sepay_api_key` bằng `SEPAY_WEBHOOK_API_KEY` để nhận 200; sai key trả 401, chưa cấu hình key trả 503. Mã chuyển khoản trong ví dụ không khớp giao dịch nào nên không kích hoạt gì."
+          }
+        }
+      ],
+      "description": "Chọn gói, tạo giao dịch chờ thanh toán rồi xác nhận. Quyền lợi chỉ được kích hoạt sau bước xác nhận ở backend."
+    },
+    {
+      "name": "06 · Cửa hàng",
+      "item": [
+        {
+          "name": "Sản phẩm đang bán",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Sản phẩm đang bán"
+          }
+        }
+      ],
+      "description": "Danh mục sản phẩm công khai (có cache)."
+    },
+    {
+      "name": "07 · Huấn luyện viên",
+      "item": [
+        {
+          "name": "Hồ sơ PT của tôi",
           "event": [
             {
               "listen": "test",
@@ -150,16 +1743,167 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('co access_token', () => pm.expect(body.access_token).to.be.a('string').and.not.empty);",
-                  "pm.collectionVariables.set('access_token', body.access_token);"
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('trainer_id', body.id);",
+                  "}"
                 ]
               }
             }
-          ]
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trainers/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trainers",
+                "me"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Hồ sơ huấn luyện viên của tôi\n\nLưu id PT vào `trainer_id` cho các bước đặt lịch."
+          }
         },
         {
-          "name": "Register - trung email (409)",
+          "name": "Lịch làm việc của tôi",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trainers/me/schedule",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trainers",
+                "me",
+                "schedule"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Lịch làm việc của tôi. Lịch tuần, lịch nghỉ sắp tới và các buổi đã đặt bị lệch khỏi lịch.\n\n`conflicts` liệt kê các buổi đã đặt nằm ngoài lịch hiện tại."
+          }
+        },
+        {
+          "name": "Lưu lịch tuần",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trainers/me/schedule",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trainers",
+                "me",
+                "schedule"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"weekly\": [\n    {\n      \"weekday\": 1,\n      \"start_time\": \"06:00\",\n      \"end_time\": \"22:00\"\n    },\n    {\n      \"weekday\": 2,\n      \"start_time\": \"06:00\",\n      \"end_time\": \"22:00\"\n    },\n    {\n      \"weekday\": 3,\n      \"start_time\": \"06:00\",\n      \"end_time\": \"22:00\"\n    },\n    {\n      \"weekday\": 4,\n      \"start_time\": \"06:00\",\n      \"end_time\": \"22:00\"\n    },\n    {\n      \"weekday\": 5,\n      \"start_time\": \"06:00\",\n      \"end_time\": \"22:00\"\n    },\n    {\n      \"weekday\": 6,\n      \"start_time\": \"06:00\",\n      \"end_time\": \"22:00\"\n    },\n    {\n      \"weekday\": 7,\n      \"start_time\": \"06:00\",\n      \"end_time\": \"22:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Lưu lịch làm việc hằng tuần. Thay toàn bộ lịch tuần. Buổi đã đặt giữ nguyên và được liệt kê trong ``conflicts``.\n\nThay toàn bộ lịch tuần của PT đang đăng nhập. `weekday` theo ISO: 1 = Thứ 2 … 7 = Chủ nhật; giờ là giờ phòng tập (UTC+7)."
+          }
+        },
+        {
+          "name": "Thêm lịch nghỉ",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('time_off_start', new Date(Date.now() + 20 * 86400000).toISOString());",
+                  "pm.collectionVariables.set('time_off_end', new Date(Date.now() + 21 * 86400000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('time_off_id', (body.time_off.filter(t => t.reason === 'Nghỉ phép (Postman)').pop() || {}).id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -168,37 +1912,327 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trainers/me/time-off",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trainers",
+                "me",
+                "time-off"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Nguoi Thu Hai\",\n  \"email\": \"vana@example.com\",\n  \"password\": \"password123\"\n}",
+              "raw": "{\n  \"start_at\": \"{{time_off_start}}\",\n  \"end_at\": \"{{time_off_end}}\",\n  \"reason\": \"Nghỉ phép (Postman)\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "register"]
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
             },
-            "description": "Ca âm: đăng ký lại email đã tồn tại phải trả 409 EMAIL_EXISTS."
-          },
+            "description": "Thêm lịch nghỉ đột xuất\n\nKhoảng nghỉ được đặt cách hôm nay 20 ngày, ngoài cửa sổ đặt lịch 14 ngày nên không ảnh hưởng các bước sau."
+          }
+        },
+        {
+          "name": "Xoá lịch nghỉ",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
-                  "pm.test('code = EMAIL_EXISTS', () => pm.expect(pm.response.json().error.code).to.eql('EMAIL_EXISTS'));"
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
-          ]
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trainers/me/time-off/{{time_off_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trainers",
+                "me",
+                "time-off",
+                "{{time_off_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Xoá lịch nghỉ"
+          }
         },
         {
-          "name": "Login - sai mat khau (401)",
+          "name": "Buổi dạy của tôi",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pt-bookings/teaching?booking_status=ACCEPTED",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pt-bookings",
+                "teaching"
+              ],
+              "query": [
+                {
+                  "key": "booking_status",
+                  "value": "ACCEPTED"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Buổi dạy của tôi (PT). Buổi sắp tới trước (tăng dần theo giờ), sau đó là lịch sử.\n\nBỏ `booking_status` để lấy cả lịch sử."
+          }
+        }
+      ],
+      "description": "Chạy bằng `pt_token`. PT khai lịch tuần và lịch nghỉ; hội viên chỉ thấy PT đã có lịch."
+    },
+    {
+      "name": "08 · Đặt lịch PT",
+      "item": [
+        {
+          "name": "Danh sách PT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trainers?activity_type=GYM",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trainers"
+              ],
+              "query": [
+                {
+                  "key": "activity_type",
+                  "value": "GYM"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Huấn luyện viên đã có lịch làm việc"
+          }
+        },
+        {
+          "name": "PT tôi đặt được",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trainers/bookable",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trainers",
+                "bookable"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Huấn luyện viên tôi đặt được theo gói tập. Chỉ PT có chuyên môn trùng loại hình (Gym/Yoga) của gói hội viên còn hiệu lực.\n\nChỉ PT có chuyên môn trùng loại hình của gói còn hiệu lực."
+          }
+        },
+        {
+          "name": "Ô trống của PT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('slot_start_at', body[0].start_at);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trainers/{{trainer_id}}/slots",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trainers",
+                "{{trainer_id}}",
+                "slots"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Các ô còn trống của một huấn luyện viên. Ô cố định theo lịch tuần, đã trừ lịch nghỉ và buổi người khác đã đặt.\n\nÔ 60 phút trong 14 ngày tới, đã trừ lịch nghỉ và buổi đã có người đặt. Lưu ô đầu tiên vào `slot_start_at`."
+          }
+        },
+        {
+          "name": "Ví lượt PT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pt-credits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pt-credits"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Ví lượt PT của tôi"
+          }
+        },
+        {
+          "name": "Mua thêm buổi PT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('pt_payment_id', body.payment_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -207,37 +2241,99 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pt-credits/purchase",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pt-credits",
+                "purchase"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"vana@example.com\",\n  \"password\": \"sai-mat-khau\"\n}",
+              "raw": "{\n  \"quantity\": 2\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
             },
-            "description": "Ca âm: sai mật khẩu phải trả 401 INVALID_CREDENTIALS và tăng failed_login_count."
-          },
+            "description": "Mua thêm buổi PT (payment PENDING). Tạo payment PENDING; lượt chỉ được cộng sau bước xác nhận ở backend.\n\nTạo payment PENDING; lượt chỉ được cộng sau khi thanh toán được xác nhận."
+          }
+        },
+        {
+          "name": "Giả lập thanh toán lượt PT",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
-                  "pm.test('code = INVALID_CREDENTIALS', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_CREDENTIALS'));"
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
-          ]
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{pt_payment_id}}/mark-paid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{pt_payment_id}}",
+                "mark-paid"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Giả lập đã nhận tiền (chỉ dev) hoặc Admin xác nhận thủ công. Hội viên chỉ dùng được khi ``allow_payment_simulation`` bật và payment là của mình.\n\nỞ production quyền lợi chỉ được kích hoạt qua webhook ngân hàng hoặc Admin (ADR-004)."
+          }
         },
         {
-          "name": "Register - thieu du lieu (422)",
+          "name": "Đặt buổi PT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('booking_id', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -246,34 +2342,2231 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pt-bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pt-bookings"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Ngan\",\n  \"email\": \"khong-co-a-cong\",\n  \"password\": \"12345\"\n}",
+              "raw": "{\n  \"trainer_id\": \"{{trainer_id}}\",\n  \"start_at\": \"{{slot_start_at}}\",\n  \"notes\": \"Muốn tập trung phần thân trên.\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "register"]
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
             },
-            "description": "Ca âm: email sai định dạng và password dưới 8 ký tự phải trả 422 VALIDATION_ERROR."
-          },
+            "description": "Đặt một ô trống của PT (xác nhận ngay). Giữ 1 lượt PT, buổi ở trạng thái ACCEPTED và PT nhận thông báo.\n\nGiữ 1 lượt PT và gửi thông báo cho PT."
+          }
+        },
+        {
+          "name": "Buổi PT của tôi",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
-                  "pm.test('code = VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pt-bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pt-bookings"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Buổi PT của tôi"
+          }
+        },
+        {
+          "name": "PT chốt hoàn thành",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 hoặc 409', () => pm.expect(pm.response.code).to.be.oneOf([200, 409]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pt-bookings/{{booking_id}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pt-bookings",
+                "{{booking_id}}",
+                "complete"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "PT xác nhận buổi đã hoàn thành\n\nChỉ chốt được khi đã tới giờ bắt đầu; gọi trước giờ trả 409 SESSION_NOT_STARTED."
+          }
+        },
+        {
+          "name": "PT ghi vắng mặt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 hoặc 409', () => pm.expect(pm.response.code).to.be.oneOf([200, 409]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pt-bookings/{{booking_id}}/no-show",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pt-bookings",
+                "{{booking_id}}",
+                "no-show"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "PT ghi nhận hội viên vắng mặt\n\nNhư chốt hoàn thành: lượt bị trừ, chỉ gọi được sau giờ bắt đầu."
+          }
+        },
+        {
+          "name": "Huỷ buổi PT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pt-bookings/{{booking_id}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pt-bookings",
+                "{{booking_id}}",
+                "cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Bận việc đột xuất\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Huỷ buổi PT (hội viên hoặc PT phụ trách). PT huỷ phải có lý do và luôn hoàn lượt; hội viên huỷ sớm mới được hoàn lượt.\n\nHội viên huỷ trước giờ tập ít nhất 12 giờ thì được hoàn lượt. PT cũng gọi endpoint này để huỷ: bắt buộc có `reason` và luôn hoàn lượt. Bên còn lại nhận thông báo và email."
+          }
+        }
+      ],
+      "description": "Hội viên đặt một ô trống là buổi được xác nhận ngay (ACCEPTED), không có bước PT duyệt. Cần gói còn hiệu lực khớp chuyên môn PT và còn lượt PT."
+    },
+    {
+      "name": "09 · Thông báo",
+      "item": [
+        {
+          "name": "Thông báo của tôi",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('notification_id', (body.items[0] || {}).id || '');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications?limit=30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "30"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Thông báo của tôi"
+          }
+        },
+        {
+          "name": "Số thông báo chưa đọc",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "unread-count"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Số thông báo chưa đọc"
+          }
+        },
+        {
+          "name": "Đánh dấu đã đọc",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/{{notification_id}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{{notification_id}}",
+                "read"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Đánh dấu đã đọc"
+          }
+        },
+        {
+          "name": "Đánh dấu tất cả đã đọc",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Đánh dấu tất cả đã đọc"
+          }
+        }
+      ],
+      "description": "Chạy bằng `pt_token`: PT vừa nhận thông báo đặt và huỷ buổi."
+    },
+    {
+      "name": "10 · Quản trị",
+      "item": [
+        {
+          "name": "Tổng quan và báo cáo",
+          "item": [
+            {
+              "name": "Số liệu tổng quan",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/overview",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "overview"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Số liệu tổng quan"
+              }
+            },
+            {
+              "name": "Báo cáo doanh thu",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/revenue?period=MONTH&count=12",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "revenue"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "MONTH"
+                    },
+                    {
+                      "key": "count",
+                      "value": "12"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Báo cáo doanh thu. Doanh thu từ payment đã PAID, gom theo tuần/tháng/quý/năm (giờ phòng tập). Có cache.\n\n`period`: WEEK, MONTH, QUARTER hoặc YEAR. Kỳ không có doanh thu trả 0. Có cache 2 phút, tự làm mới khi có giao dịch thành công."
+              }
+            },
+            {
+              "name": "Tăng trưởng hội viên",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/members/growth?period=MONTH&count=12",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "members",
+                    "growth"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "MONTH"
+                    },
+                    {
+                      "key": "count",
+                      "value": "12"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Tăng trưởng hội viên. Hội viên mới theo tuần/tháng/quý/năm và tổng hội viên cộng dồn. Có cache."
+              }
+            }
           ]
+        },
+        {
+          "name": "Tài khoản",
+          "item": [
+            {
+              "name": "Danh sách tài khoản",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/users?search=nguyen&role=USER&status=ACTIVE&sort=full_name&page=1&page_size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "users"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "nguyen"
+                    },
+                    {
+                      "key": "role",
+                      "value": "USER"
+                    },
+                    {
+                      "key": "status",
+                      "value": "ACTIVE"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "full_name"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "page_size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Danh sách tài khoản\n\n`search` tìm theo tên, email, số điện thoại, mã hội viên, mã PT hoặc tên đăng nhập, không phân biệt dấu. `sort`: full_name, email, created_at, last_login_at; tiền tố `-` là giảm dần."
+              }
+            },
+            {
+              "name": "Tạo tài khoản PT",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('admin_new_email', 'postman.pt.' + Date.now() + '' + Math.floor(100 + Math.random() * 900) + '@example.com');",
+                      "pm.collectionVariables.set('admin_new_phone', '09' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('admin_user_id', body.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "users"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"full_name\": \"Huấn luyện viên Postman\",\n  \"email\": \"{{admin_new_email}}\",\n  \"phone\": \"{{admin_new_phone}}\",\n  \"password\": \"{{member_password}}\",\n  \"role\": \"PT\",\n  \"hourly_rate\": 220000,\n  \"bio\": \"Tài khoản thử tạo từ Postman.\",\n  \"specialties\": [\n    \"GYM\",\n    \"WEIGHT_LOSS\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Tạo tài khoản hội viên / PT / quản lý / quản trị. Quản lý (MANAGER) chỉ tạo được tài khoản hội viên.\n\n`role`: USER (kèm hồ sơ hội viên), PT (kèm hồ sơ PT), MANAGER hoặc ADMIN. Quản lý chỉ tạo được USER."
+              }
+            },
+            {
+              "name": "Sửa tài khoản",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/users/{{admin_user_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "users",
+                    "{{admin_user_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"full_name\": \"Huấn luyện viên Postman (đã sửa)\",\n  \"hourly_rate\": 250000,\n  \"status\": \"ACTIVE\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Sửa tài khoản"
+              }
+            },
+            {
+              "name": "Đặt lại mật khẩu",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/users/{{admin_user_id}}/password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "users",
+                    "{{admin_user_id}}",
+                    "password"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"password\": \"{{member_password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Đặt lại mật khẩu và mở khoá đăng nhập\n\nĐồng thời mở khoá tài khoản đang bị khoá do đăng nhập sai."
+              }
+            },
+            {
+              "name": "Xoá tài khoản",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/users/{{admin_user_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "users",
+                    "{{admin_user_id}}"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Xoá tài khoản. Xoá mềm: giữ lịch sử thanh toán/gói tập, giải phóng email và số điện thoại.\n\nXoá mềm: giữ lịch sử, giải phóng email và số điện thoại."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gói tập",
+          "item": [
+            {
+              "name": "Tất cả gói tập",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/plans",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "plans"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Tất cả gói tập (kể cả đang ẩn)\n\nMỗi gói có `row_version` để chống ghi đè khi sửa."
+              }
+            },
+            {
+              "name": "Thêm gói",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('admin_plan_code', 'POSTMAN_' + Date.now() + '' + Math.floor(100 + Math.random() * 900));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('admin_plan_id', body.id);",
+                      "  pm.collectionVariables.set('admin_plan_version', String(body.row_version));",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/plans",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "plans"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"code\": \"{{admin_plan_code}}\",\n  \"name\": \"Gói trải nghiệm 7 ngày\",\n  \"activity_type\": \"GYM\",\n  \"description\": \"Gói thử tạo từ Postman.\",\n  \"duration_days\": 7,\n  \"price\": 150000,\n  \"is_active\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Thêm gói\n\nChỉ điền một trong hai: `duration_months` hoặc `duration_days`."
+              }
+            },
+            {
+              "name": "Sửa gói",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/plans/{{admin_plan_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "plans",
+                    "{{admin_plan_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"code\": \"{{admin_plan_code}}\",\n  \"name\": \"Gói trải nghiệm 7 ngày (đã sửa)\",\n  \"activity_type\": \"GYM\",\n  \"description\": \"Gói thử tạo từ Postman.\",\n  \"duration_days\": 7,\n  \"price\": 180000,\n  \"is_active\": false,\n  \"row_version\": {{admin_plan_version}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Sửa gói tập. Đổi giá chỉ áp dụng cho lượt mua mới. Gửi ``row_version`` để không ghi đè người khác.\n\nGửi `row_version` đang xem; người khác vừa sửa thì trả 409 `VERSION_CONFLICT`."
+              }
+            },
+            {
+              "name": "Sửa gói — phiên bản cũ (409)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 409', () => pm.response.to.have.status(409));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/plans/{{admin_plan_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "plans",
+                    "{{admin_plan_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"code\": \"{{admin_plan_code}}\",\n  \"name\": \"Gói trải nghiệm 7 ngày\",\n  \"activity_type\": \"GYM\",\n  \"description\": \"Gói thử tạo từ Postman.\",\n  \"duration_days\": 7,\n  \"price\": 90000,\n  \"is_active\": false,\n  \"row_version\": {{admin_plan_version}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Sửa gói tập. Đổi giá chỉ áp dụng cho lượt mua mới. Gửi ``row_version`` để không ghi đè người khác.\n\nGửi lại đúng `row_version` cũ sau khi gói đã đổi: bị từ chối thay vì ghi đè."
+              }
+            },
+            {
+              "name": "Xoá gói",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/plans/{{admin_plan_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "plans",
+                    "{{admin_plan_id}}"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Xoá gói"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ra vào",
+          "item": [
+            {
+              "name": "Lịch sử ra vào",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/checkins?sort=-check_in_at&page=1&page_size=30",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "checkins"
+                  ],
+                  "query": [
+                    {
+                      "key": "sort",
+                      "value": "-check_in_at"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "page_size",
+                      "value": "30"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Lịch sử ra vào\n\nThêm `date_from`, `date_to` (YYYY-MM-DD, giờ phòng tập) hoặc `search` để lọc. `sort`: check_in_at, member_name."
+              }
+            },
+            {
+              "name": "Check-in tại quầy",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('checkin_id', body.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/checkins",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "checkins"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"identifier\": \"{{member_email}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Check-in thủ công tại quầy\n\n`identifier` là mã hội viên, email hoặc số điện thoại. Hội viên phải có gói còn hiệu lực và chưa ở trong phòng tập."
+              }
+            },
+            {
+              "name": "Đang ở trong phòng tập",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/checkins?inside_only=true",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "checkins"
+                  ],
+                  "query": [
+                    {
+                      "key": "inside_only",
+                      "value": "true"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Lịch sử ra vào"
+              }
+            },
+            {
+              "name": "Check-out",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/checkins/{{checkin_id}}/checkout",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "checkins",
+                    "{{checkin_id}}",
+                    "checkout"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Check-out"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Giao dịch",
+          "item": [
+            {
+              "name": "Danh sách giao dịch",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/payments?status=PAID&purpose=MEMBERSHIP&sort=-amount&page=1&page_size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "payments"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "PAID"
+                    },
+                    {
+                      "key": "purpose",
+                      "value": "MEMBERSHIP"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "-amount"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "page_size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Danh sách giao dịch\n\n`paid_total` là tổng tiền đã thu của mọi giao dịch khớp bộ lọc. `sort`: created_at, paid_at, amount."
+              }
+            },
+            {
+              "name": "Hội viên tạo giao dịch chờ (để xác nhận)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('confirm_payment_id', body.payment_id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/pt-credits/purchase",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "pt-credits",
+                    "purchase"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quantity\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Mua thêm buổi PT (payment PENDING). Tạo payment PENDING; lượt chỉ được cộng sau bước xác nhận ở backend."
+              }
+            },
+            {
+              "name": "Xác nhận đã thu tiền",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/payments/{{confirm_payment_id}}/confirm",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "payments",
+                    "{{confirm_payment_id}}",
+                    "confirm"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"method\": \"CASH\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Xác nhận đã thu tiền và kích hoạt quyền lợi. Dùng khi thu tiền mặt tại quầy hoặc đối soát khoản chuyển mà webhook không khớp.\n\nKích hoạt quyền lợi qua cùng procedure với webhook ngân hàng."
+              }
+            },
+            {
+              "name": "Hội viên tạo giao dịch chờ (để huỷ)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('void_payment_id', body.payment_id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/pt-credits/purchase",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "pt-credits",
+                    "purchase"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quantity\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Mua thêm buổi PT (payment PENDING). Tạo payment PENDING; lượt chỉ được cộng sau bước xác nhận ở backend."
+              }
+            },
+            {
+              "name": "Huỷ giao dịch chờ",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/payments/{{void_payment_id}}/void",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "payments",
+                    "{{void_payment_id}}",
+                    "void"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Khách đổi ý\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Huỷ giao dịch đang chờ thanh toán\n\nChỉ quản trị viên; chỉ huỷ được giao dịch PENDING."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sản phẩm",
+          "item": [
+            {
+              "name": "Danh sách sản phẩm",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/products?activity_type=GYM&status=ACTIVE&sort=price&page=1&page_size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "products"
+                  ],
+                  "query": [
+                    {
+                      "key": "activity_type",
+                      "value": "GYM"
+                    },
+                    {
+                      "key": "status",
+                      "value": "ACTIVE"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "price"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "page_size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Sản phẩm (kể cả đang ẩn)\n\n`sort`: name, price, stock_quantity, created_at."
+              }
+            },
+            {
+              "name": "Thêm sản phẩm",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('admin_product_name', 'Dây kháng lực Postman ' + Date.now() + '' + Math.floor(100 + Math.random() * 900));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('admin_product_id', body.id);",
+                      "  pm.collectionVariables.set('admin_product_version', String(body.row_version));",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/products",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "products"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{admin_product_name}}\",\n  \"category_name\": \"Phụ kiện\",\n  \"activity_type\": \"GYM\",\n  \"description\": \"Sản phẩm thử tạo từ Postman.\",\n  \"price\": 199000,\n  \"stock_quantity\": 25,\n  \"status\": \"DRAFT\",\n  \"badge\": \"Mới\",\n  \"art\": \"gloves\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Thêm sản phẩm"
+              }
+            },
+            {
+              "name": "Sửa sản phẩm",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/products/{{admin_product_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "products",
+                    "{{admin_product_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{admin_product_name}}\",\n  \"category_name\": \"Phụ kiện\",\n  \"activity_type\": \"GYM\",\n  \"description\": \"Sản phẩm thử tạo từ Postman.\",\n  \"price\": 179000,\n  \"stock_quantity\": 25,\n  \"status\": \"ACTIVE\",\n  \"badge\": \"Mới\",\n  \"art\": \"gloves\",\n  \"row_version\": {{admin_product_version}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Sửa sản phẩm. Thay đổi tồn kho được ghi vào sổ kho. Gửi ``row_version`` để không ghi đè người khác."
+              }
+            },
+            {
+              "name": "Xoá sản phẩm",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/products/{{admin_product_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "products",
+                    "{{admin_product_id}}"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Xoá sản phẩm"
+              }
+            },
+            {
+              "name": "Tải file mẫu nhập sản phẩm",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/products/import-template?format=xlsx",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "products",
+                    "import-template"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "xlsx"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Tải file mẫu để nhập sản phẩm\n\n`format`: xlsx hoặc csv. Bấm *Send and Download* để lưu file."
+              }
+            },
+            {
+              "name": "Nhập sản phẩm từ Excel/CSV",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "if (pm.response.code === 200) {",
+                      "  console.log('Kết quả nhập:', JSON.stringify(pm.response.json()));",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/products/import",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "products",
+                    "import"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "docs/postman/san-pham-mau.csv"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Nhập sản phẩm từ Excel (.xlsx) hoặc CSV. SKU đã có thì cập nhật, chưa có thì tạo mới. Dòng lỗi được trả về, các dòng khác vẫn lưu.\n\nChọn file `.xlsx`/`.csv` theo file mẫu ở trường `file` (tab Body → form-data). SKU đã có thì cập nhật, chưa có thì tạo mới; dòng lỗi trả về trong `errors` kèm số dòng.\n\nFile mẫu `docs/postman/san-pham-mau.csv` (2 sản phẩm ở trạng thái DRAFT nên không hiện ở cửa hàng; chạy lại thì cập nhật theo SKU). Đường dẫn tính từ thư mục gốc repo; nếu Postman không tìm thấy, chọn lại file ở Body → form-data."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Xuất dữ liệu và tác vụ nền",
+          "item": [
+            {
+              "name": "Xuất giao dịch ra Excel",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 202', () => pm.response.to.have.status(202));",
+                      "if (pm.response.code === 202) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('export_job_id', body.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/exports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "exports"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"report\": \"payments\",\n  \"format\": \"xlsx\",\n  \"filters\": {\n    \"status\": \"PAID\",\n    \"sort\": \"-amount\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Xuất dữ liệu ra CSV / Excel / PDF (chạy nền). Trả tác vụ PENDING; gọi ``GET /admin/jobs/{id}`` tới khi ``SUCCESS`` rồi tải file.\n\n`report`: users, payments, checkins, products, revenue, member_growth, audit_logs. `format`: xlsx, csv, pdf. `filters` giống tham số của màn hình danh sách. File được tạo trong hàng đợi tác vụ."
+              }
+            },
+            {
+              "name": "Trạng thái tác vụ xuất",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('export_download_url', body.download_url || '');",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/jobs/{{export_job_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "jobs",
+                    "{{export_job_id}}"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Trạng thái một tác vụ nền\n\nGọi lại tới khi `status` là SUCCESS rồi tải `download_url` (GET kèm token). FAILED có `error_message`."
+              }
+            },
+            {
+              "name": "Tác vụ gần đây của tôi",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/jobs?limit=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "jobs"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Tác vụ nền gần đây của tôi"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Nhật ký thao tác",
+          "item": [
+            {
+              "name": "Nhật ký thao tác",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/admin/audit-logs?entity_type=membership_plan&page=1&page_size=30",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "audit-logs"
+                  ],
+                  "query": [
+                    {
+                      "key": "entity_type",
+                      "value": "membership_plan"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "page_size",
+                      "value": "30"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "Nhật ký thao tác. Ai làm gì, lúc nào; ``before_data``/``after_data`` là lịch sử phiên bản của bản ghi.\n\nAi làm gì, lúc nào; `before_data`/`after_data` là lịch sử phiên bản. Lọc thêm `entity_id`, `action`, `search`, `date_from`, `date_to`. Chỉ ADMIN."
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Chạy bằng `admin_token`. Quyền theo vai trò: ADMIN có mọi quyền; MANAGER không quản lý tài khoản nhân sự, gói tập, huỷ giao dịch và nhật ký (403 FORBIDDEN). Mọi thao tác ghi đều được lưu vào nhật ký."
+    },
+    {
+      "name": "11 · Dọn dữ liệu thử",
+      "description": "Xoá các tài khoản phụ collection tạo ra trong lần chạy.",
+      "item": [
+        {
+          "name": "Xoá PT tạo cho bộ test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{pt_user_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                "{{pt_user_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Xoá mềm PT do collection tạo ở thư mục 02. Chạy được vì buổi PT thử đã được huỷ ở thư mục 08."
+          }
         }
       ]
     }

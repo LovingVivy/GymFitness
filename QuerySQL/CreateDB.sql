@@ -14,6 +14,7 @@ SET time_zone = '+00:00';
 -- Organization, authentication and profiles
 -- ============================================================
 
+-- BẢNG branches: Quản lý các chi nhánh phòng gym.
 CREATE TABLE branches (
   id CHAR(36) PRIMARY KEY,
   code VARCHAR(30) NOT NULL UNIQUE,
@@ -27,6 +28,7 @@ CREATE TABLE branches (
   deleted_at DATETIME(6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG users: Quản lý tài khoản đăng nhập và vai trò người dùng.
 CREATE TABLE users (
   id CHAR(36) PRIMARY KEY,
   email VARCHAR(254) NOT NULL UNIQUE,
@@ -49,6 +51,7 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_role_status ON users (role, status);
 
+-- BẢNG file_assets: Quản lý metadata của tệp được tải lên hoặc lưu trữ, như ảnh và PDF.
 CREATE TABLE file_assets (
   id CHAR(36) PRIMARY KEY,
   owner_user_id CHAR(36),
@@ -64,6 +67,7 @@ CREATE TABLE file_assets (
   CONSTRAINT fk_file_assets_owner_user_id FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG user_profiles: Lưu hồ sơ cá nhân và thông tin thể chất/mục tiêu tập luyện của người dùng.
 CREATE TABLE user_profiles (
   user_id CHAR(36) PRIMARY KEY,
   full_name VARCHAR(150) NOT NULL,
@@ -86,6 +90,7 @@ CREATE TABLE user_profiles (
   CONSTRAINT fk_user_profiles_avatar_file_id FOREIGN KEY (avatar_file_id) REFERENCES file_assets(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG user_addresses: Lưu các địa chỉ của người dùng để liên hệ hoặc giao hàng.
 CREATE TABLE user_addresses (
   id CHAR(36) PRIMARY KEY,
   user_id CHAR(36) NOT NULL,
@@ -107,6 +112,7 @@ CREATE TABLE user_addresses (
 
 CREATE INDEX idx_user_addresses_user ON user_addresses (user_id, is_default, deleted_at);
 
+-- BẢNG refresh_tokens: Quản lý refresh token phục vụ duy trì phiên đăng nhập và thu hồi token.
 CREATE TABLE refresh_tokens (
   id CHAR(36) PRIMARY KEY,
   user_id CHAR(36) NOT NULL,
@@ -126,6 +132,7 @@ CREATE TABLE refresh_tokens (
 CREATE INDEX idx_refresh_tokens_user_active
   ON refresh_tokens (user_id, expires_at);
 
+-- BẢNG password_reset_tokens: Quản lý token dùng trong quy trình đặt lại mật khẩu.
 CREATE TABLE password_reset_tokens (
   id CHAR(36) PRIMARY KEY,
   user_id CHAR(36) NOT NULL,
@@ -140,6 +147,7 @@ CREATE TABLE password_reset_tokens (
 CREATE INDEX idx_password_reset_user_active
   ON password_reset_tokens (user_id, expires_at);
 
+-- BẢNG members: Quản lý hồ sơ hội viên của phòng gym.
 CREATE TABLE members (
   id CHAR(36) PRIMARY KEY,
   member_code VARCHAR(30) NOT NULL UNIQUE,
@@ -164,6 +172,7 @@ CREATE INDEX idx_members_name ON members (full_name);
 CREATE INDEX idx_members_status ON members (status);
 CREATE INDEX idx_members_branch ON members (home_branch_id);
 
+-- BẢNG trainer_profiles: Quản lý hồ sơ nhân viên huấn luyện viên cá nhân (PT).
 CREATE TABLE trainer_profiles (
   id CHAR(36) PRIMARY KEY,
   user_id CHAR(36) NOT NULL UNIQUE,
@@ -182,6 +191,7 @@ CREATE TABLE trainer_profiles (
   CONSTRAINT fk_trainer_profiles_branch_id FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG trainer_specialties: Lưu các chuyên môn của từng huấn luyện viên.
 CREATE TABLE trainer_specialties (
   trainer_id CHAR(36) NOT NULL,
   specialty VARCHAR(24) NOT NULL
@@ -195,6 +205,7 @@ CREATE TABLE trainer_specialties (
 -- Payments, membership plans and subscriptions
 -- ============================================================
 
+-- BẢNG payments: Quản lý giao dịch thanh toán cho gói hội viên, buổi PT hoặc đơn hàng.
 CREATE TABLE payments (
   id CHAR(36) PRIMARY KEY,
   payment_number VARCHAR(40) NOT NULL UNIQUE,
@@ -227,6 +238,7 @@ CREATE UNIQUE INDEX uq_payments_provider_reference ON payments (provider, extern
 CREATE INDEX idx_payments_member_created ON payments (member_id, created_at DESC);
 CREATE INDEX idx_payments_status_created ON payments (status, created_at DESC);
 
+-- BẢNG payment_events: Lưu sự kiện/thông báo giao dịch nhận từ nhà cung cấp thanh toán và trạng thái xử lý.
 CREATE TABLE payment_events (
   id CHAR(36) PRIMARY KEY,
   payment_id CHAR(36),
@@ -242,6 +254,7 @@ CREATE TABLE payment_events (
   CONSTRAINT fk_payment_events_payment_id FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG membership_plans: Quản lý các gói hội viên như gói gym hoặc yoga, thời hạn và giá.
 CREATE TABLE membership_plans (
   id CHAR(36) PRIMARY KEY,
   code VARCHAR(40) NOT NULL UNIQUE,
@@ -265,6 +278,7 @@ CREATE TABLE membership_plans (
 CREATE INDEX idx_membership_plans_activity_active
   ON membership_plans (activity_type, is_active);
 
+-- BẢNG membership_subscriptions: Quản lý đăng ký sử dụng gói tập của hội viên.
 CREATE TABLE membership_subscriptions (
   id CHAR(36) PRIMARY KEY,
   member_id CHAR(36) NOT NULL,
@@ -301,6 +315,7 @@ CREATE INDEX idx_subscriptions_member_status
 CREATE INDEX idx_subscriptions_expiry
   ON membership_subscriptions (status, end_at, deleted_at);
 
+-- BẢNG subscription_status_history: Lưu lịch sử thay đổi trạng thái đăng ký gói tập.
 CREATE TABLE subscription_status_history (
   id CHAR(36) PRIMARY KEY,
   subscription_id CHAR(36) NOT NULL,
@@ -317,6 +332,7 @@ CREATE TABLE subscription_status_history (
 CREATE INDEX idx_subscription_history_subscription
   ON subscription_status_history (subscription_id, created_at DESC);
 
+-- BẢNG subscription_freeze_history: Lưu lịch sử đóng băng gói tập và số ngày được cộng/cho phép.
 CREATE TABLE subscription_freeze_history (
   id CHAR(36) PRIMARY KEY,
   subscription_id CHAR(36) NOT NULL,
@@ -335,6 +351,7 @@ CREATE TABLE subscription_freeze_history (
 -- Training schedules and facility check-in
 -- ============================================================
 
+-- BẢNG workout_schedule_entries: Quản lý các mục trong lịch tập của hội viên, như tập luyện, nghỉ, lớp nhóm hoặc buổi PT.
 CREATE TABLE workout_schedule_entries (
   id CHAR(36) PRIMARY KEY,
   member_id CHAR(36) NOT NULL,
@@ -366,6 +383,7 @@ CREATE INDEX idx_workout_schedule_member_date
 CREATE INDEX idx_workout_schedule_subscription
   ON workout_schedule_entries (subscription_id, scheduled_date);
 
+-- BẢNG qr_nonces: Quản lý mã dùng một lần có thời hạn để xác thực quy trình điểm danh bằng QR.
 CREATE TABLE qr_nonces (
   id CHAR(36) PRIMARY KEY,
   nonce_hash CHAR(64) NOT NULL UNIQUE,
@@ -382,6 +400,7 @@ CREATE TABLE qr_nonces (
 
 CREATE INDEX idx_qr_nonces_expiry ON qr_nonces (expires_at);
 
+-- BẢNG check_ins: Ghi nhận lượt vào/ra phòng gym và cách thức điểm danh.
 CREATE TABLE check_ins (
   id CHAR(36) PRIMARY KEY,
   member_id CHAR(36) NOT NULL,
@@ -413,6 +432,7 @@ CREATE INDEX idx_check_ins_branch_time ON check_ins (branch_id, check_in_at DESC
 -- PT credit wallet, availability and bookings
 -- ============================================================
 
+-- BẢNG pt_credit_accounts: Quản lý tài khoản số dư buổi tập PT của hội viên.
 CREATE TABLE pt_credit_accounts (
   id CHAR(36) PRIMARY KEY,
   member_id CHAR(36) NOT NULL UNIQUE,
@@ -426,6 +446,7 @@ CREATE TABLE pt_credit_accounts (
   CONSTRAINT fk_pt_credit_accounts_member_id FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG pt_credit_purchases: Lưu các lần mua gói/buổi tập PT.
 CREATE TABLE pt_credit_purchases (
   id CHAR(36) PRIMARY KEY,
   credit_account_id CHAR(36) NOT NULL,
@@ -442,6 +463,7 @@ CREATE TABLE pt_credit_purchases (
   CONSTRAINT fk_pt_credit_purchases_payment_id FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG trainer_availability: Quản lý các khung thời gian huấn luyện viên có thể nhận lịch.
 CREATE TABLE trainer_availability (
   id CHAR(36) PRIMARY KEY,
   trainer_id CHAR(36) NOT NULL,
@@ -463,6 +485,7 @@ CREATE TABLE trainer_availability (
 CREATE INDEX idx_trainer_availability_search
   ON trainer_availability (trainer_id, start_at, end_at, status);
 
+-- BẢNG pt_bookings: Quản lý lịch đặt buổi tập giữa hội viên và huấn luyện viên.
 CREATE TABLE pt_bookings (
   id CHAR(36) PRIMARY KEY,
   booking_number VARCHAR(40) NOT NULL UNIQUE,
@@ -507,6 +530,7 @@ CREATE INDEX idx_pt_bookings_member_status_time
 CREATE INDEX idx_pt_bookings_pending_expiry
   ON pt_bookings (status, response_due_at, deleted_at);
 
+-- BẢNG pt_credit_ledger: Lưu lịch sử biến động số dư buổi PT, chẳng hạn cộng, giữ chỗ, sử dụng hoặc hoàn lại.
 CREATE TABLE pt_credit_ledger (
   id CHAR(36) PRIMARY KEY,
   credit_account_id CHAR(36) NOT NULL,
@@ -540,6 +564,7 @@ CREATE INDEX idx_pt_credit_ledger_booking ON pt_credit_ledger (booking_id);
 -- Group classes
 -- ============================================================
 
+-- BẢNG rooms: Quản lý phòng/không gian tổ chức các lớp tập tại chi nhánh.
 CREATE TABLE rooms (
   id CHAR(36) PRIMARY KEY,
   branch_id CHAR(36) NOT NULL,
@@ -554,6 +579,7 @@ CREATE TABLE rooms (
   CONSTRAINT fk_rooms_branch_id FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG class_types: Quản lý danh mục loại lớp tập, chẳng hạn gym hoặc yoga.
 CREATE TABLE class_types (
   id CHAR(36) PRIMARY KEY,
   code VARCHAR(40) NOT NULL UNIQUE,
@@ -567,6 +593,7 @@ CREATE TABLE class_types (
   deleted_at DATETIME(6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG class_sessions: Quản lý từng buổi lớp cụ thể, gồm lịch, huấn luyện viên, phòng và sức chứa.
 CREATE TABLE class_sessions (
   id CHAR(36) PRIMARY KEY,
   class_type_id CHAR(36) NOT NULL,
@@ -591,6 +618,7 @@ CREATE TABLE class_sessions (
 
 CREATE INDEX idx_class_sessions_start_status ON class_sessions (start_at, status);
 
+-- BẢNG class_bookings: Quản lý việc đăng ký, danh sách chờ, hủy và tham dự các buổi lớp.
 CREATE TABLE class_bookings (
   id CHAR(36) PRIMARY KEY,
   session_id CHAR(36) NOT NULL,
@@ -621,6 +649,7 @@ CREATE INDEX idx_class_bookings_member ON class_bookings (member_id, booked_at D
 -- Product catalog, inventory, cart and orders
 -- ============================================================
 
+-- BẢNG product_categories: Quản lý danh mục và phân cấp danh mục sản phẩm.
 CREATE TABLE product_categories (
   id CHAR(36) PRIMARY KEY,
   parent_id CHAR(36),
@@ -633,6 +662,7 @@ CREATE TABLE product_categories (
   CONSTRAINT fk_product_categories_parent_id FOREIGN KEY (parent_id) REFERENCES product_categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG products: Quản lý thông tin chung của sản phẩm được bán.
 CREATE TABLE products (
   id CHAR(36) PRIMARY KEY,
   category_id CHAR(36),
@@ -652,6 +682,7 @@ CREATE TABLE products (
 CREATE INDEX idx_products_category_status ON products (category_id, status);
 CREATE INDEX idx_products_name ON products (name);
 
+-- BẢNG product_variants: Quản lý từng phiên bản/SKU của sản phẩm, giá và tồn kho.
 CREATE TABLE product_variants (
   id CHAR(36) PRIMARY KEY,
   product_id CHAR(36) NOT NULL,
@@ -675,6 +706,7 @@ CREATE TABLE product_variants (
 
 CREATE INDEX idx_product_variants_product ON product_variants (product_id);
 
+-- BẢNG product_images: Liên kết hình ảnh với sản phẩm và sắp xếp thứ tự hiển thị.
 CREATE TABLE product_images (
   id CHAR(36) PRIMARY KEY,
   product_id CHAR(36) NOT NULL,
@@ -687,6 +719,7 @@ CREATE TABLE product_images (
   CONSTRAINT fk_product_images_file_asset_id FOREIGN KEY (file_asset_id) REFERENCES file_assets(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG carts: Quản lý giỏ hàng của người dùng.
 CREATE TABLE carts (
   id CHAR(36) PRIMARY KEY,
   user_id CHAR(36) NOT NULL UNIQUE,
@@ -695,6 +728,7 @@ CREATE TABLE carts (
   CONSTRAINT fk_carts_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG cart_items: Lưu các phiên bản sản phẩm và số lượng trong giỏ hàng.
 CREATE TABLE cart_items (
   id CHAR(36) PRIMARY KEY,
   cart_id CHAR(36) NOT NULL,
@@ -707,6 +741,7 @@ CREATE TABLE cart_items (
   CONSTRAINT fk_cart_items_variant_id FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG orders: Quản lý đơn đặt hàng và trạng thái xử lý đơn.
 CREATE TABLE orders (
   id CHAR(36) PRIMARY KEY,
   order_number VARCHAR(40) NOT NULL UNIQUE,
@@ -736,6 +771,7 @@ CREATE TABLE orders (
 CREATE INDEX idx_orders_user_created ON orders (user_id, created_at DESC);
 CREATE INDEX idx_orders_status_created ON orders (status, created_at DESC);
 
+-- BẢNG order_addresses: Lưu ảnh chụp địa chỉ nhận hàng tại thời điểm tạo đơn.
 CREATE TABLE order_addresses (
   order_id CHAR(36) PRIMARY KEY,
   source_address_id CHAR(36),
@@ -751,6 +787,7 @@ CREATE TABLE order_addresses (
   CONSTRAINT fk_order_addresses_source_address_id FOREIGN KEY (source_address_id) REFERENCES user_addresses(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG order_items: Lưu các sản phẩm thuộc đơn hàng cùng thông tin tên/SKU/giá tại thời điểm đặt.
 CREATE TABLE order_items (
   id CHAR(36) PRIMARY KEY,
   order_id CHAR(36) NOT NULL,
@@ -768,6 +805,7 @@ CREATE TABLE order_items (
 
 CREATE INDEX idx_order_items_order ON order_items (order_id);
 
+-- BẢNG inventory_movements: Ghi lại các lần nhập, giữ, nhả, bán, trả hoặc điều chỉnh hàng tồn kho.
 CREATE TABLE inventory_movements (
   id CHAR(36) PRIMARY KEY,
   variant_id CHAR(36) NOT NULL,
@@ -794,6 +832,7 @@ CREATE INDEX idx_inventory_movements_variant_time
 -- Invoices, equipment, notifications, jobs and audit
 -- ============================================================
 
+-- BẢNG invoices: Quản lý hóa đơn liên quan đến giao dịch thanh toán.
 CREATE TABLE invoices (
   id CHAR(36) PRIMARY KEY,
   invoice_number VARCHAR(40) NOT NULL UNIQUE,
@@ -819,6 +858,7 @@ CREATE TABLE invoices (
   CONSTRAINT fk_invoices_pdf_file_id FOREIGN KEY (pdf_file_id) REFERENCES file_assets(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- BẢNG equipment: Quản lý thiết bị và máy móc tại các chi nhánh.
 CREATE TABLE equipment (
   id CHAR(36) PRIMARY KEY,
   branch_id CHAR(36),
@@ -841,6 +881,7 @@ CREATE TABLE equipment (
 
 CREATE INDEX idx_equipment_branch_status ON equipment (branch_id, status);
 
+-- BẢNG maintenance_records: Quản lý lịch và lịch sử bảo trì/sửa chữa thiết bị.
 CREATE TABLE maintenance_records (
   id CHAR(36) PRIMARY KEY,
   equipment_id CHAR(36) NOT NULL,
@@ -866,6 +907,7 @@ CREATE TABLE maintenance_records (
 CREATE INDEX idx_maintenance_equipment_status
   ON maintenance_records (equipment_id, status, scheduled_at);
 
+-- BẢNG notifications: Quản lý thông báo trong hệ thống và trạng thái gửi email nếu có.
 CREATE TABLE notifications (
   id CHAR(36) PRIMARY KEY,
   user_id CHAR(36) NOT NULL,
@@ -886,6 +928,7 @@ CREATE UNIQUE INDEX uq_notifications_idempotency ON notifications (idempotency_k
 CREATE INDEX idx_notifications_user_unread
   ON notifications (user_id, read_at, created_at DESC);
 
+-- BẢNG background_jobs: Theo dõi các công việc chạy nền, tiến độ, kết quả và lỗi.
 CREATE TABLE background_jobs (
   id CHAR(36) PRIMARY KEY,
   external_job_id VARCHAR(100) UNIQUE,
@@ -909,6 +952,7 @@ CREATE TABLE background_jobs (
 
 CREATE INDEX idx_background_jobs_status_created ON background_jobs (status, created_at);
 
+-- BẢNG audit_logs: Ghi nhật ký hành động để phục vụ kiểm tra và truy vết thay đổi.
 CREATE TABLE audit_logs (
   id CHAR(36) PRIMARY KEY,
   actor_user_id CHAR(36),

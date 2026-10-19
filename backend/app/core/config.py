@@ -69,6 +69,51 @@ class Settings(BaseSettings):
     # Huỷ trước giờ tập tối thiểu N giờ thì được hoàn lượt.
     pt_cancel_refund_hours: int = 12
 
+    # --- Tài khoản quản trị mặc định (tạo lúc khởi động nếu chưa có) --------
+    admin_username: str = "admin"
+    admin_email: str = "admin@gmail.com"
+    admin_full_name: str = "Quản trị viên"
+    # Chỉ đặt trong .env (không commit). Trống = không tạo admin mặc định.
+    admin_default_password: str = ""
+
+    # --- Vận hành: log, Redis, cache, rate limit ----------------------------
+    log_level: str = "INFO"
+    # "json" (một dòng JSON mỗi log, cho máy đọc) hoặc "text"; "auto" = text khi dev.
+    log_format: str = "auto"
+    # Tắt hẳn Redis (cache và rate limit dùng bộ nhớ trong tiến trình, job chạy luồng nền).
+    redis_enabled: bool = True
+    cache_enabled: bool = True
+    cache_catalog_ttl_seconds: int = 300
+    cache_report_ttl_seconds: int = 120
+    rate_limit_enabled: bool = True
+    # Số request mỗi phút cho mỗi địa chỉ IP.
+    rate_limit_auth_per_minute: int = 10
+    rate_limit_api_per_minute: int = 300
+
+    # --- Hàng đợi tác vụ (gửi email, xuất báo cáo) ---------------------------
+    # "auto": Redis nếu kết nối được, không thì chạy trong luồng nền của API.
+    # "redis": chỉ đẩy vào Redis (cần tiến trình worker). "thread" | "inline": không cần worker.
+    job_queue_mode: str = "auto"
+
+    # --- Email --------------------------------------------------------------
+    # SMTP_HOST trống = không gửi thật, email được ghi vào storage/outbox và log.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_starttls: bool = True
+    mail_from: str = "IRONIX Fitness <no-reply@ironix.vn>"
+    # Địa chỉ frontend, dùng để dựng liên kết trong email (đặt lại mật khẩu...).
+    frontend_base_url: str = "http://localhost:5173"
+    password_reset_ttl_minutes: int = 30
+
+    # --- Xác thực 2 bước (TOTP) ---------------------------------------------
+    two_factor_issuer: str = "IRONIX Fitness"
+
+    # --- PDF ----------------------------------------------------------------
+    # Font TTF có dấu tiếng Việt; trống = tự tìm DejaVuSans/Arial trên máy.
+    pdf_font_path: str = ""
+
     model_config = SettingsConfigDict(
         env_file=(".env", "backend/.env"),
         env_file_encoding="utf-8",
@@ -81,6 +126,13 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.app_env.strip().lower() in DEV_ENVIRONMENTS
+
+    @property
+    def json_logs(self) -> bool:
+        fmt = self.log_format.strip().lower()
+        if fmt == "auto":
+            return not self.is_development
+        return fmt == "json"
 
     @property
     def allow_payment_simulation(self) -> bool:

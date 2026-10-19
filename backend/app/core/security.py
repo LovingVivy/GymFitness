@@ -60,12 +60,32 @@ def _b64url_decode(data: str) -> bytes:
 
 def create_access_token(subject: str, role: str) -> str:
     settings = get_settings()
+    return _sign({"sub": subject, "role": role}, settings.jwt_access_token_expire_minutes)
+
+
+def create_purpose_token(subject: str, purpose: str, minutes: int, **claims: str) -> str:
+    """Short-lived token for one step of a flow (2FA challenge, 2FA setup).
+
+    It carries a ``purpose`` claim, which :func:`decode_access_token` refuses,
+    so it can never be used as a login session.
+    """
+    return _sign({"sub": subject, "purpose": purpose, **claims}, minutes)
+
+
+def decode_purpose_token(token: str, purpose: str) -> dict:
+    payload = _decode(token)
+    if payload.get("purpose") != purpose:
+        raise ValueError("invalid token purpose")
+    return payload
+
+
+def _sign(claims: dict, minutes: int) -> str:
+    settings = get_settings()
     now = datetime.now(UTC)
-    expires = now + timedelta(minutes=settings.jwt_access_token_expire_minutes)
+    expires = now + timedelta(minutes=minutes)
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
-        "sub": subject,
-        "role": role,
+        **claims,
         "iat": int(now.timestamp()),
         "exp": int(expires.timestamp()),
         "jti": secrets.token_hex(16),
@@ -85,6 +105,13 @@ def create_access_token(subject: str, role: str) -> str:
 
 
 def decode_access_token(token: str) -> dict:
+    payload = _decode(token)
+    if "purpose" in payload:
+        raise ValueError("not an access token")
+    return payload
+
+
+def _decode(token: str) -> dict:
     settings = get_settings()
     try:
         header_b64, payload_b64, signature_b64 = token.split(".")

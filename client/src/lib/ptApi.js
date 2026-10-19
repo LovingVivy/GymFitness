@@ -8,6 +8,9 @@ const auth = () => ({ token: getToken() });
 export const listTrainers = (activityType) =>
   request(`/trainers${activityType ? `?activity_type=${activityType}` : ""}`, auth());
 
+/** PT hội viên đặt được: chuyên môn trùng loại hình (Gym/Yoga) của gói còn hiệu lực. */
+export const listBookableTrainers = () => request("/trainers/bookable", auth());
+
 export const getMyTrainerProfile = () => request("/trainers/me", auth());
 
 /** Các ô 60 phút còn trống trong 14 ngày tới của một PT. */

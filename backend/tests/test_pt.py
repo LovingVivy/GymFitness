@@ -1,9 +1,10 @@
 """Integration tests for trainer schedules, PT sessions, credits and notifications.
 
-The trainer accounts come from ``database/04_seed.sql``; member accounts are
-created per test and fully removed afterwards by the shared fixtures. The
-seeded trainers' weekly schedule and time off are snapshotted and restored, so
-running the suite does not wipe a schedule set up by hand on the dev database.
+Two trainer accounts (one Gym, one Yoga) are created through the admin API
+for this module and removed afterwards, so the suite does not depend on seed
+data an admin may have deleted. Member accounts are created per test and fully
+removed by the shared fixtures. Cleanup only touches rows of these trainers and
+members, leaving real schedules and bookings on the dev database alone.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from tests.conftest import client
+from tests.conftest import client, mail_text, purge_user
 
 TRAINERS_URL = "/api/v1/trainers"
 SCHEDULE_URL = f"{TRAINERS_URL}/me/schedule"
@@ -25,17 +26,78 @@ TEACHING_URL = f"{BOOKINGS_URL}/teaching"
 NOTIFICATIONS_URL = "/api/v1/notifications"
 SUBSCRIPTIONS_URL = "/api/v1/subscriptions"
 
-GYM_TRAINER_EMAIL = "pt.gym@ironix.vn"
-YOGA_TRAINER_EMAIL = "pt.yoga@ironix.vn"
-GYM_TRAINER_ID = "30000000-0000-0000-0000-000000000001"
-YOGA_TRAINER_ID = "30000000-0000-0000-0000-000000000002"
-PT_PASSWORD = "pt12345678"
+PT_PASSWORD = f"pt-{uuid.uuid4().hex[:12]}"
+
+# Filled by ``trainer_accounts``: {"GYM": {"id", "user_id", "email"}, "YOGA": {...}}.
+TRAINERS: dict[str, dict[str, str]] = {}
+
+_TRAINER_SPECIALTIES = {"GYM": ["GYM", "MUSCLE_GAIN"], "YOGA": ["YOGA", "FLEXIBILITY"]}
+
+
+def trainer_ids() -> tuple[str, str]:
+    return (TRAINERS["GYM"]["id"], TRAINERS["YOGA"]["id"])
+
+
+@pytest.fixture(scope="module", autouse=True)
+def trainer_accounts(db) -> Iterator[dict[str, dict[str, str]]]:
+    """Create a Gym and a Yoga trainer the way an admin would, then remove them."""
+    tag = uuid.uuid4().hex[:8]
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={
+            "full_name": "Pytest PT Admin",
+            "email": f"pytest.ptadmin.{tag}@example.com",
+            "password": "password123",
+        },
+    )
+    assert registered.status_code == 201, registered.text
+    admin_id = registered.json()["user"]["id"]
+    with db.cursor() as cursor:
+        cursor.execute("UPDATE users SET role = 'ADMIN' WHERE id = %s", (admin_id,))
+    admin_headers = {"Authorization": f"Bearer {registered.json()['access_token']}"}
+
+    try:
+        for activity, specialties in _TRAINER_SPECIALTIES.items():
+            email = f"pytest.pt.{activity.lower()}.{tag}@example.com"
+            created = client.post(
+                "/api/v1/admin/users",
+                json={
+                    "full_name": f"Pytest PT {activity.title()}",
+                    "email": email,
+                    "password": PT_PASSWORD,
+                    "role": "PT",
+                    "specialties": specialties,
+                },
+                headers=admin_headers,
+            )
+            assert created.status_code == 201, created.text
+            profile = client.get(f"{TRAINERS_URL}/me", headers=_login(email, PT_PASSWORD)).json()
+            TRAINERS[activity] = {
+                "id": profile["id"],
+                "user_id": created.json()["id"],
+                "email": email,
+            }
+        yield TRAINERS
+    finally:
+        with db.cursor() as cursor:
+            for trainer in TRAINERS.values():
+                cursor.execute(
+                    "DELETE FROM trainer_weekly_schedule WHERE trainer_id = %s", (trainer["id"],)
+                )
+                cursor.execute(
+                    "DELETE FROM trainer_time_off WHERE trainer_id = %s", (trainer["id"],)
+                )
+        for trainer in TRAINERS.values():
+            purge_user(db, trainer["user_id"])
+        purge_user(db, admin_id)
+        TRAINERS.clear()
+
 
 EVERY_DAY = [{"weekday": day, "start_time": "06:00", "end_time": "22:00"} for day in range(1, 8)]
 
 
 @pytest.fixture(autouse=True)
-def reset_pt_state(db) -> Iterator[None]:
+def reset_pt_state(db, trainer_accounts) -> Iterator[None]:
     """Snapshot schedules, then clean bookings/notifications after each test.
 
     Declared autouse so it tears down *last*, after ``purge_account`` has
@@ -44,28 +106,40 @@ def reset_pt_state(db) -> Iterator[None]:
     with db.cursor() as cursor:
         cursor.execute(
             "SELECT id, trainer_id, weekday, start_time, end_time FROM trainer_weekly_schedule"
+            " WHERE trainer_id IN (%s, %s)",
+            trainer_ids(),
         )
         schedule = cursor.fetchall()
         cursor.execute(
             "SELECT id, trainer_id, start_at, end_at, reason, deleted_at FROM trainer_time_off"
+            " WHERE trainer_id IN (%s, %s)",
+            trainer_ids(),
         )
         time_off = cursor.fetchall()
-        # Mỗi test bắt đầu với PT chưa có lịch.
-        cursor.execute("DELETE FROM trainer_weekly_schedule")
-        cursor.execute("DELETE FROM trainer_time_off")
+        # Mỗi test bắt đầu với hai PT của module chưa có lịch.
+        cursor.execute(
+            "DELETE FROM trainer_weekly_schedule WHERE trainer_id IN (%s, %s)", trainer_ids()
+        )
+        cursor.execute("DELETE FROM trainer_time_off WHERE trainer_id IN (%s, %s)", trainer_ids())
 
     yield
 
     with db.cursor() as cursor:
-        cursor.execute("DELETE FROM pt_credit_ledger")
-        cursor.execute("DELETE FROM pt_bookings")
+        cursor.execute(
+            "DELETE FROM pt_credit_ledger WHERE booking_id IN "
+            "(SELECT id FROM pt_bookings WHERE trainer_id IN (%s, %s))",
+            trainer_ids(),
+        )
+        cursor.execute("DELETE FROM pt_bookings WHERE trainer_id IN (%s, %s)", trainer_ids())
         cursor.execute(
             "DELETE FROM notifications WHERE user_id IN "
             "(SELECT id FROM users WHERE email IN (%s, %s))",
-            (GYM_TRAINER_EMAIL, YOGA_TRAINER_EMAIL),
+            (TRAINERS["GYM"]["email"], TRAINERS["YOGA"]["email"]),
         )
-        cursor.execute("DELETE FROM trainer_weekly_schedule")
-        cursor.execute("DELETE FROM trainer_time_off")
+        cursor.execute(
+            "DELETE FROM trainer_weekly_schedule WHERE trainer_id IN (%s, %s)", trainer_ids()
+        )
+        cursor.execute("DELETE FROM trainer_time_off WHERE trainer_id IN (%s, %s)", trainer_ids())
         if schedule:
             cursor.executemany(
                 "INSERT INTO trainer_weekly_schedule"
@@ -89,12 +163,12 @@ def _login(email: str, password: str) -> dict[str, str]:
 
 @pytest.fixture
 def gym_trainer() -> dict[str, str]:
-    return _login(GYM_TRAINER_EMAIL, PT_PASSWORD)
+    return _login(TRAINERS["GYM"]["email"], PT_PASSWORD)
 
 
 @pytest.fixture
 def yoga_trainer() -> dict[str, str]:
-    return _login(YOGA_TRAINER_EMAIL, PT_PASSWORD)
+    return _login(TRAINERS["YOGA"]["email"], PT_PASSWORD)
 
 
 def _set_schedule(headers: dict[str, str], weekly: list[dict] | None = None) -> dict:
@@ -103,7 +177,8 @@ def _set_schedule(headers: dict[str, str], weekly: list[dict] | None = None) -> 
     return response.json()
 
 
-def _slots(headers: dict[str, str], trainer_id: str = GYM_TRAINER_ID) -> list[dict]:
+def _slots(headers: dict[str, str], trainer_id: str | None = None) -> list[dict]:
+    trainer_id = trainer_id or TRAINERS["GYM"]["id"]
     response = client.get(f"{TRAINERS_URL}/{trainer_id}/slots", headers=headers)
     assert response.status_code == 200, response.text
     return response.json()
@@ -140,7 +215,8 @@ def _ready_member(session: dict, credits: int = 3) -> None:
     _buy_credits(session, credits)
 
 
-def _book(session: dict, start_at: str, trainer_id: str = GYM_TRAINER_ID):
+def _book(session: dict, start_at: str, trainer_id: str | None = None):
+    trainer_id = trainer_id or TRAINERS["GYM"]["id"]
     return client.post(
         BOOKINGS_URL,
         json={"trainer_id": trainer_id, "start_at": start_at, "notes": "Buổi tập đầu tiên"},
@@ -189,18 +265,18 @@ def second_member(purge) -> Iterator[dict]:
 
 
 # --------------------------------------------------------------------------
-# Seeded trainer accounts
+# Trainer accounts created by an admin
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("email", [GYM_TRAINER_EMAIL, YOGA_TRAINER_EMAIL])
-def test_seeded_trainer_accounts_can_log_in(email) -> None:
-    headers = _login(email, PT_PASSWORD)
+@pytest.mark.parametrize("activity", ["GYM", "YOGA"])
+def test_admin_created_trainer_can_log_in(activity) -> None:
+    headers = _login(TRAINERS[activity]["email"], PT_PASSWORD)
     profile = client.get(f"{TRAINERS_URL}/me", headers=headers)
     assert profile.status_code == 200
     body = profile.json()
     assert body["employee_code"].startswith("PT")
-    assert body["specialties"]
+    assert set(body["specialties"]) == set(_TRAINER_SPECIALTIES[activity])
     assert body["hourly_rate"] > 0
 
 
@@ -229,7 +305,7 @@ def test_trainer_without_schedule_is_hidden_from_members(session, gym_trainer) -
     assert body["timezone"] == "GMT+7"
 
     catalogue = client.get(TRAINERS_URL, headers=session["headers"]).json()
-    assert GYM_TRAINER_ID not in {trainer["id"] for trainer in catalogue}
+    assert TRAINERS["GYM"]["id"] not in {trainer["id"] for trainer in catalogue}
 
 
 def test_trainer_saves_weekly_schedule(session, gym_trainer) -> None:
@@ -250,7 +326,7 @@ def test_trainer_saves_weekly_schedule(session, gym_trainer) -> None:
     trainer = next(
         item
         for item in client.get(TRAINERS_URL, headers=session["headers"]).json()
-        if item["id"] == GYM_TRAINER_ID
+        if item["id"] == TRAINERS["GYM"]["id"]
     )
     assert trainer["schedule_weekdays"] == [1, 3]
 
@@ -396,6 +472,55 @@ def test_booking_requires_active_subscription(session, gym_trainer) -> None:
     assert response.json()["error"]["code"] == "NO_ACTIVE_SUBSCRIPTION"
 
 
+def _bookable_ids(session: dict) -> set[str]:
+    response = client.get(f"{TRAINERS_URL}/bookable", headers=session["headers"])
+    assert response.status_code == 200, response.text
+    return {trainer["id"] for trainer in response.json()}
+
+
+def test_bookable_trainers_follow_the_members_plan(session, gym_trainer, yoga_trainer) -> None:
+    _set_schedule(gym_trainer)
+    _set_schedule(yoga_trainer)
+
+    # Chưa có gói: không đặt được ai.
+    assert _bookable_ids(session) & set(trainer_ids()) == set()
+
+    _subscribe(session, "GYM_YEARLY")
+    assert _bookable_ids(session) & set(trainer_ids()) == {TRAINERS["GYM"]["id"]}
+
+    # Mua thêm gói Yoga thì đặt được cả PT Yoga.
+    _subscribe(session, "YOGA_MONTHLY")
+    assert _bookable_ids(session) & set(trainer_ids()) == set(trainer_ids())
+
+
+def test_bookable_trainers_need_a_schedule_and_a_token(session, gym_trainer) -> None:
+    _subscribe(session, "GYM_YEARLY")
+    assert TRAINERS["GYM"]["id"] not in _bookable_ids(session)
+    assert client.get(f"{TRAINERS_URL}/bookable").status_code == 401
+
+
+def test_gym_member_cannot_book_yoga_trainer(session, yoga_trainer) -> None:
+    _set_schedule(yoga_trainer)
+    _ready_member(session)  # gói GYM_YEARLY + lượt PT
+    slot = _slots(session["headers"], TRAINERS["YOGA"]["id"])[0]
+
+    response = _book(session, slot["start_at"], trainer_id=TRAINERS["YOGA"]["id"])
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "TRAINER_MISMATCH"
+    assert _wallet(session)["reserved"] == 0, "không được giữ lượt khi đặt sai loại hình"
+
+
+def test_yoga_member_books_yoga_trainer(session, yoga_trainer) -> None:
+    _set_schedule(yoga_trainer)
+    _subscribe(session, "YOGA_YEARLY")
+    _buy_credits(session, 1)
+    slot = _slots(session["headers"], TRAINERS["YOGA"]["id"])[0]
+
+    response = _book(session, slot["start_at"], trainer_id=TRAINERS["YOGA"]["id"])
+    assert response.status_code == 201, response.text
+    assert response.json()["activity_type"] == "YOGA"
+
+
 def test_booking_requires_credits(session, gym_trainer) -> None:
     _set_schedule(gym_trainer)
     _subscribe(session)
@@ -441,9 +566,10 @@ def test_booked_slot_disappears_and_cannot_be_taken_twice(
 
 def test_member_cannot_book_two_trainers_at_once(session, gym_trainer, yoga_trainer) -> None:
     booking = _booked(session, gym_trainer)
+    _subscribe(session, "YOGA_YEARLY")
     _set_schedule(yoga_trainer)
 
-    response = _book(session, booking["start_at"], trainer_id=YOGA_TRAINER_ID)
+    response = _book(session, booking["start_at"], trainer_id=TRAINERS["YOGA"]["id"])
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "MEMBER_BUSY"
 
@@ -496,7 +622,7 @@ def test_booking_during_time_off_is_rejected(session, gym_trainer) -> None:
 # --------------------------------------------------------------------------
 
 
-def test_member_early_cancel_refunds_credit(session, gym_trainer, db) -> None:
+def test_member_early_cancel_refunds_credit(session, gym_trainer, db, outbox) -> None:
     booking = _booked(session, gym_trainer)
     # Ô đầu tiên chỉ cách ~2 giờ (dưới mốc 12 giờ), dời ra xa để là huỷ sớm.
     _move_booking(db, booking["id"], timedelta(days=2))
@@ -513,6 +639,11 @@ def test_member_early_cancel_refunds_credit(session, gym_trainer, db) -> None:
 
     notifications = client.get(NOTIFICATIONS_URL, headers=gym_trainer).json()["items"]
     assert any(n["notification_type"] == "PT_SESSION_CANCELLED" for n in notifications)
+
+    # PT cũng nhận email qua hàng đợi tác vụ.
+    emails = [mail for mail in outbox if mail["To"] == TRAINERS["GYM"]["email"]]
+    assert len(emails) == 1
+    assert "hội viên" in mail_text(emails[0])
 
 
 def test_member_late_cancel_consumes_credit(session, gym_trainer, db) -> None:
@@ -531,7 +662,9 @@ def test_member_late_cancel_consumes_credit(session, gym_trainer, db) -> None:
     assert (wallet["reserved"], wallet["used"], wallet["available"]) == (0, 1, 2)
 
 
-def test_trainer_cancel_requires_reason_and_always_refunds(session, gym_trainer, db) -> None:
+def test_trainer_cancel_requires_reason_and_always_refunds(
+    session, gym_trainer, db, outbox
+) -> None:
     booking = _booked(session, gym_trainer)
     _move_booking(db, booking["id"], timedelta(hours=3))
 
@@ -554,6 +687,11 @@ def test_trainer_cancel_requires_reason_and_always_refunds(session, gym_trainer,
     member_notes = client.get(NOTIFICATIONS_URL, headers=session["headers"]).json()["items"]
     cancelled = [n for n in member_notes if n["notification_type"] == "PT_SESSION_CANCELLED"]
     assert cancelled and "Ốm đột xuất" in cancelled[0]["body"]
+
+    emails = [mail for mail in outbox if "đã bị huỷ" in mail["Subject"]]
+    assert [mail["To"] for mail in emails] == [session["account"]["email"]]
+    assert "Ốm đột xuất" in mail_text(emails[0])
+    assert "hoàn lại" in mail_text(emails[0])
 
 
 def test_strangers_cannot_cancel(session, second_member, gym_trainer, yoga_trainer) -> None:
@@ -678,7 +816,9 @@ def test_trainer_cannot_book_as_member(gym_trainer) -> None:
     _set_schedule(gym_trainer)
     start = _slots(gym_trainer)[0]["start_at"]
     response = client.post(
-        BOOKINGS_URL, json={"trainer_id": GYM_TRAINER_ID, "start_at": start}, headers=gym_trainer
+        BOOKINGS_URL,
+        json={"trainer_id": TRAINERS["GYM"]["id"], "start_at": start},
+        headers=gym_trainer,
     )
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "MEMBER_NOT_FOUND"

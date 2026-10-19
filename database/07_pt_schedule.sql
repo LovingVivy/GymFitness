@@ -222,8 +222,13 @@ DELIMITER $$
 -- sp_trainer_list
 -- PT đang hoạt động và ĐÃ khai lịch làm việc: PT chưa có lịch không hiện
 -- cho hội viên, tránh chọn phải người không có giờ nào để đặt.
+-- p_member_user_id khác NULL: chỉ trả PT có chuyên môn trùng loại hình (GYM/YOGA)
+-- của một gói hội viên còn hiệu lực của tài khoản đó (ADR-018).
 -- ============================================================
-CREATE PROCEDURE sp_trainer_list(IN p_activity_type VARCHAR(24))
+CREATE PROCEDURE sp_trainer_list(
+  IN p_activity_type VARCHAR(24),
+  IN p_member_user_id CHAR(36)
+)
 BEGIN
   SELECT
     t.id,
@@ -249,6 +254,18 @@ BEGIN
     AND (p_activity_type IS NULL
          OR EXISTS (SELECT 1 FROM trainer_specialties ts2
                     WHERE ts2.trainer_id = t.id AND ts2.specialty = p_activity_type))
+    AND (p_member_user_id IS NULL
+         OR EXISTS (SELECT 1
+                    FROM members m
+                    JOIN membership_subscriptions s ON s.member_id = m.id
+                    JOIN membership_plans pl ON pl.id = s.plan_id
+                    JOIN trainer_specialties ts3
+                      ON ts3.trainer_id = t.id AND ts3.specialty = pl.activity_type
+                    WHERE m.user_id = p_member_user_id
+                      AND m.deleted_at IS NULL
+                      AND s.status = 'ACTIVE'
+                      AND s.deleted_at IS NULL
+                      AND s.end_at > UTC_TIMESTAMP(6)))
   ORDER BY p.full_name;
 END$$
 
@@ -538,12 +555,27 @@ BEGIN
       AND s.deleted_at IS NULL
       AND s.start_at <= p_start_at
       AND s.end_at >= p_end_at
+      -- ADR-018: gói GYM chỉ đặt được PT có chuyên môn GYM, gói YOGA chỉ đặt PT YOGA.
+      AND EXISTS (SELECT 1 FROM trainer_specialties ts
+                  WHERE ts.trainer_id = p_trainer_id AND ts.specialty = pl.activity_type)
     ORDER BY s.end_at DESC
     LIMIT 1;
 
     IF v_subscription_id IS NULL THEN
-      SET v_error_code = 'NO_ACTIVE_SUBSCRIPTION';
-      SET v_error_message = 'Cần có gói hội viên còn hiệu lực trong ngày tập để đặt PT.';
+      IF EXISTS (
+        SELECT 1 FROM membership_subscriptions s
+        WHERE s.member_id = v_member_id
+          AND s.status = 'ACTIVE'
+          AND s.deleted_at IS NULL
+          AND s.start_at <= p_start_at
+          AND s.end_at >= p_end_at
+      ) THEN
+        SET v_error_code = 'TRAINER_MISMATCH';
+        SET v_error_message = 'Huấn luyện viên này không dạy loại hình trong gói tập của bạn.';
+      ELSE
+        SET v_error_code = 'NO_ACTIVE_SUBSCRIPTION';
+        SET v_error_message = 'Cần có gói hội viên còn hiệu lực trong ngày tập để đặt PT.';
+      END IF;
     END IF;
   END IF;
 

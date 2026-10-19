@@ -52,8 +52,14 @@ def find_trainer_by_user(db: Session, user_id: str) -> dict[str, Any] | None:
     return rows[0] if rows else None
 
 
-def list_trainers(db: Session, activity_type: str | None = None) -> list[dict[str, Any]]:
-    return call(db, LIST_TRAINERS, {"p_activity_type": activity_type})
+def list_trainers(
+    db: Session, activity_type: str | None = None, member_user_id: str | None = None
+) -> list[dict[str, Any]]:
+    return call(
+        db,
+        LIST_TRAINERS,
+        {"p_activity_type": activity_type, "p_member_user_id": member_user_id},
+    )
 
 
 # --------------------------------------------------------------------------
@@ -293,3 +299,9 @@ def mark_notification_read(db: Session, *, user_id: str, notification_id: str) -
 def mark_all_notifications_read(db: Session, user_id: str) -> int:
     rows = call(db, MARK_ALL_NOTIFICATIONS_READ, {"p_user_id": user_id})
     return int(rows[0].get("updated") or 0) if rows else 0
+
+
+def booking_contact(db: Session, booking_id: str) -> dict[str, Any] | None:
+    """Member and trainer contact details of one booking, for emails."""
+    rows = call(db, "sp_pt_booking_contact", {"p_booking_id": booking_id})
+    return rows[0] if rows else None

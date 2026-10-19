@@ -2,7 +2,7 @@
 
 ## 1. Phạm vi
 
-Database dùng MySQL 8.0+ và phục vụ ba vai trò `ADMIN`, `USER`, `PT`. Thiết kế bao phủ đăng nhập, hồ sơ, gói Gym/Yoga, thanh toán QR, lịch tập, check-in QR, lịch PT, lượt PT trả phí, lớp học, cửa hàng, thiết bị, thông báo và audit log.
+Database dùng MySQL 8.0+ và phục vụ bốn vai trò `ADMIN`, `MANAGER`, `USER`, `PT` (CHECK `chk_users_role`, ADR-019). Thiết kế bao phủ đăng nhập, hồ sơ, gói Gym/Yoga, thanh toán QR, lịch tập, check-in QR, lịch PT, lượt PT trả phí, lớp học, cửa hàng, thiết bị, thông báo và audit log.
 
 DDL bảng nằm tại [`database/01_tables.sql`](../database/01_tables.sql) và trigger kiểm tra lịch nằm tại [`database/02_triggers.sql`](../database/02_triggers.sql).
 
@@ -28,6 +28,8 @@ erDiagram
     PT_CREDIT_ACCOUNTS ||--o{ PT_CREDIT_PURCHASES : receives
     PAYMENTS ||--o| PT_CREDIT_PURCHASES : credits
     PT_CREDIT_ACCOUNTS ||--o{ PT_CREDIT_LEDGER : records
+    TRAINER_PROFILES ||--o{ TRAINER_WEEKLY_SCHEDULE : works
+    TRAINER_PROFILES ||--o{ TRAINER_TIME_OFF : blocks
     TRAINER_PROFILES ||--o{ TRAINER_AVAILABILITY : publishes
     TRAINER_PROFILES ||--o{ PT_BOOKINGS : accepts
     MEMBERS ||--o{ PT_BOOKINGS : requests
@@ -52,6 +54,10 @@ erDiagram
     PAYMENTS ||--o| INVOICES : produces
     EQUIPMENT ||--o{ MAINTENANCE_RECORDS : receives
     USERS ||--o{ AUDIT_LOGS : acts
+    USERS ||--o{ PASSWORD_RESET_TOKENS : resets
+    USERS ||--o{ BACKGROUND_JOBS : requests
+    BACKGROUND_JOBS }o--o| FILE_ASSETS : produces
+    USERS ||--o{ FILE_ASSETS : owns
 ```
 
 ## 3. Nhóm bảng
@@ -98,7 +104,7 @@ erDiagram
 | --- | --- |
 | `payments` | Thanh toán hội viên, lượt PT hoặc đơn sản phẩm |
 | `payment_events` | Webhook có idempotency và lưu payload để đối soát |
-| `invoices` | Hóa đơn và tệp PDF |
+| `invoices` | Hoá đơn của payment đã thu (số `HDyyyymm-nnnnn`), PDF dựng khi cần (ADR-023) |
 | `products`, `product_variants` | Danh mục sản phẩm, SKU, giá và tồn kho |
 | `carts`, `cart_items` | Giỏ hàng đang hoạt động |
 | `orders`, `order_items` | Đơn hàng và snapshot sản phẩm tại lúc mua |
@@ -113,8 +119,8 @@ erDiagram
 | `class_types`, `class_sessions`, `class_bookings` | Lớp Gym/Yoga, sức chứa và waitlist |
 | `equipment`, `maintenance_records` | Thiết bị và lịch sử bảo trì |
 | `notifications` | Thông báo trong app và trạng thái gửi email |
-| `background_jobs` | Trạng thái Celery job, export và tạo PDF |
-| `audit_logs` | Truy vết hành động nhạy cảm |
+| `background_jobs` | Hàng đợi tác vụ nền (gửi email, xuất báo cáo): trạng thái, tiến độ, file kết quả (ADR-020) |
+| `audit_logs` | Ai làm gì, lúc nào, dữ liệu trước/sau — đồng thời là lịch sử phiên bản (ADR-022) |
 
 ## 4. Quy tắc dữ liệu quan trọng
 

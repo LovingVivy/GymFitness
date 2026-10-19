@@ -32,7 +32,7 @@ CREATE TABLE users (
   email VARCHAR(254) NOT NULL UNIQUE,
   phone VARCHAR(30) UNIQUE,
   password_hash TEXT NOT NULL,
-  role VARCHAR(16) NOT NULL CHECK (role IN ('ADMIN', 'USER', 'PT')),
+  role VARCHAR(16) NOT NULL,
   status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE'
     CHECK (status IN ('PENDING', 'ACTIVE', 'SUSPENDED', 'INACTIVE')),
   email_verified_at DATETIME(6),
@@ -44,7 +44,8 @@ CREATE TABLE users (
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   deleted_at DATETIME(6),
-  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version > 0)
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version > 0),
+  CONSTRAINT chk_users_role CHECK (role IN ('ADMIN', 'MANAGER', 'USER', 'PT'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX idx_users_role_status ON users (role, status);

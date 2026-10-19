@@ -6,38 +6,41 @@ import { createSubscription, listPlans, refreshProfile, updateProfile, useAuth }
 import { navigateTo } from "../lib/navigation";
 import "./PlanRegistration.css";
 
-const plans = {
-  gymMonthly: {
-    name: "Gym theo tháng",
-    category: "Gym",
-    price: 500000,
-    period: "30 ngày",
-    note: "Linh hoạt gia hạn mỗi tháng"
-  },
-  gymYearly: {
-    name: "Gym theo năm",
-    category: "Gym",
-    price: 4200000,
-    originalPrice: 6000000,
-    period: "12 tháng",
-    note: "Tiết kiệm 1.800.000đ"
-  },
-  yogaMonthly: {
-    name: "Yoga theo tháng",
-    category: "Yoga",
-    price: 350000,
-    period: "30 ngày",
-    note: "Linh hoạt gia hạn mỗi tháng"
-  },
-  yogaYearly: {
-    name: "Yoga theo năm",
-    category: "Yoga",
-    price: 2940000,
-    originalPrice: 4200000,
-    period: "12 tháng",
-    note: "Tiết kiệm 1.260.000đ"
-  }
+// Thông tin quảng bá thêm cho các gói có sẵn; gói do admin tạo dùng mô tả trong database.
+const PLAN_META = {
+  GYM_MONTHLY: { note: "Linh hoạt gia hạn mỗi tháng" },
+  GYM_YEARLY: { originalPrice: 6000000, note: "Tiết kiệm 1.800.000đ" },
+  YOGA_MONTHLY: { note: "Linh hoạt gia hạn mỗi tháng" },
+  YOGA_YEARLY: { originalPrice: 4200000, note: "Tiết kiệm 1.260.000đ" }
 };
+
+// Dự phòng khi chưa tải được danh sách gói từ API.
+const FALLBACK_PLANS = [
+  { code: "GYM_MONTHLY", name: "Gym theo tháng", activity_type: "GYM", duration_months: 1, price: 500000 },
+  { code: "GYM_YEARLY", name: "Gym theo năm", activity_type: "GYM", duration_months: 12, price: 4200000 },
+  { code: "YOGA_MONTHLY", name: "Yoga theo tháng", activity_type: "YOGA", duration_months: 1, price: 350000 },
+  { code: "YOGA_YEARLY", name: "Yoga theo năm", activity_type: "YOGA", duration_months: 12, price: 2940000 }
+];
+
+function toOption(item) {
+  const months = item.duration_months;
+  const period = months ? `${months} tháng` : `${item.duration_days} ngày`;
+  const per = months === 12 ? "năm" : months === 1 ? "tháng" : period;
+  const category = item.activity_type === "YOGA" ? "Yoga" : "Gym";
+  const extra = PLAN_META[item.code] ?? {};
+  return {
+    key: item.code,
+    id: item.id,
+    name: item.name,
+    category,
+    price: Number(item.price),
+    period,
+    per,
+    originalPrice: extra.originalPrice,
+    note: extra.note ?? item.description ?? `Thời hạn ${period}`,
+    isLong: (months ?? 0) >= 12
+  };
+}
 
 const healthyWeightTables = {
   male: [[150, "47–54"], [155, "50–58"], [160, "54–61"], [165, "57–65"], [170, "60–69"], [175, "64–73"], [180, "67–77"], [185, "71–81"]],
@@ -84,14 +87,6 @@ const PT_PRICE = 200000;
 
 const formatCurrency = (value) => new Intl.NumberFormat("vi-VN").format(value) + "đ";
 
-// Mã gói tương ứng trong database (xem database/04_seed.sql).
-const PLAN_CODES = {
-  gymMonthly: "GYM_MONTHLY",
-  gymYearly: "GYM_YEARLY",
-  yogaMonthly: "YOGA_MONTHLY",
-  yogaYearly: "YOGA_YEARLY"
-};
-
 const EXPERIENCE_CODES = {
   beginner: "BEGINNER",
   intermediate: "INTERMEDIATE",
@@ -106,7 +101,7 @@ const GOAL_CODES = {
 
 export default function PlanRegistration() {
   const user = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState("gymYearly");
+  const [selectedPlan, setSelectedPlan] = useState("GYM_YEARLY");
   const [ptSessions, setPtSessions] = useState(0);
   const [goal, setGoal] = useState("fitness");
   const [scheduleMode, setScheduleMode] = useState("gym");
@@ -141,11 +136,15 @@ export default function PlanRegistration() {
           ? "Trên khoảng tham khảo"
           : "Cần chú ý";
 
-  // Giá thật lấy từ database; bảng tĩnh chỉ là giá dự phòng khi API chưa trả về.
-  const priceOf = (key) =>
-    Number(catalogue.find((item) => item.code === PLAN_CODES[key])?.price ?? plans[key].price);
+  // Danh sách gói lấy từ database nên gói admin vừa thêm hiện ngay.
+  const options = useMemo(() => (catalogue.length ? catalogue : FALLBACK_PLANS).map(toOption), [catalogue]);
+  const plan = options.find((item) => item.key === selectedPlan) ?? options[0];
 
-  const plan = { ...plans[selectedPlan], price: priceOf(selectedPlan) };
+  useEffect(() => {
+    if (options.length && !options.some((item) => item.key === selectedPlan)) {
+      setSelectedPlan(options[0].key);
+    }
+  }, [options, selectedPlan]);
   const ptTotal = ptSessions * PT_PRICE;
   const total = plan.price + ptTotal;
 
@@ -160,9 +159,7 @@ export default function PlanRegistration() {
 
     if (!event.currentTarget.reportValidity()) return;
 
-    const planCode = PLAN_CODES[selectedPlan];
-    const plan = catalogue.find((item) => item.code === planCode);
-    if (!plan) {
+    if (!plan?.id) {
       setToast("Gói tập chưa sẵn sàng, vui lòng thử lại sau.");
       return;
     }
@@ -234,9 +231,9 @@ export default function PlanRegistration() {
             </div>
 
             <div className="membership-grid">
-              {Object.entries(plans).map(([key, option]) => {
-                const isYearly = Boolean(option.originalPrice);
-                const price = priceOf(key);
+              {options.map((option) => {
+                const { key, price } = option;
+                const isYearly = option.isLong;
                 const shortPrice = price >= 1000000
                   ? `${(price / 1000000).toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}M`
                   : `${price / 1000}K`;
@@ -245,11 +242,11 @@ export default function PlanRegistration() {
                   <label className={`membership-card ${isYearly ? "membership-card--featured" : ""} ${selectedPlan === key ? "is-selected" : ""}`} key={key}>
                     <input type="radio" name="plan" value={key} checked={selectedPlan === key} onChange={() => setSelectedPlan(key)} />
                     <span className="membership-radio" />
-                    <span className="membership-tag">{option.category} · {isYearly ? "Giảm 30%" : "Linh hoạt"}</span>
+                    <span className="membership-tag">{option.category} · {option.originalPrice ? `Giảm ${Math.round((1 - price / option.originalPrice) * 100)}%` : isYearly ? "Dài hạn" : "Linh hoạt"}</span>
                     <h3>{option.name}</h3>
-                    <div className="membership-price"><strong>{shortPrice}</strong><span>/ {isYearly ? "năm" : "tháng"}</span></div>
-                    {isYearly && <div className="membership-original">Giá gốc {formatCurrency(option.originalPrice)}</div>}
-                    <p>{isYearly ? option.note : `Gia hạn mỗi 30 ngày cho chương trình ${option.category}.`}</p>
+                    <div className="membership-price"><strong>{shortPrice}</strong><span>/ {option.per}</span></div>
+                    {option.originalPrice ? <div className="membership-original">Giá gốc {formatCurrency(option.originalPrice)}</div> : null}
+                    <p>{option.note}</p>
                     <ul>
                       <li>Không giới hạn buổi {option.category}</li>
                       <li>Đặt lịch trực tuyến trên hệ thống</li>
@@ -386,7 +383,7 @@ export default function PlanRegistration() {
           <h2>Tóm tắt đăng ký</h2>
           <div className="order-plan"><div><strong>{plan.name}</strong><span>{plan.period} · {plan.note}</span></div><b>{formatCurrency(plan.price)}</b></div>
           <div className="order-line"><span>Gói PT ({ptSessions} buổi)</span><strong>{formatCurrency(ptTotal)}</strong></div>
-          {plan.originalPrice && <div className="order-saving"><span>Ưu đãi gói năm</span><strong>−30%</strong></div>}
+          {plan.originalPrice ? <div className="order-saving"><span>Ưu đãi gói dài hạn</span><strong>−{Math.round((1 - plan.price / plan.originalPrice) * 100)}%</strong></div> : null}
           <div className="order-total"><span>Tổng thanh toán</span><strong>{formatCurrency(total)}</strong></div>
           <button className="order-submit" type="submit" disabled={submitting}>
             <span>

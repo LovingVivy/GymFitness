@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core.permissions import Permission, has_permission
 from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models.enums import UserRole, UserStatus
@@ -27,7 +28,7 @@ def _error(status_code: int, code: str, message: str) -> HTTPException:
     )
 
 
-def get_current_user(db: DbDep, credentials: CredentialsDep) -> dict[str, Any]:
+def get_current_user(request: Request, db: DbDep, credentials: CredentialsDep) -> dict[str, Any]:
     """Resolve the authenticated account from the ``Authorization`` header.
 
     The backend is the only layer that decides access; the frontend merely
@@ -58,6 +59,8 @@ def get_current_user(db: DbDep, credentials: CredentialsDep) -> dict[str, Any]:
             "Tài khoản đã bị khoá hoặc ngưng hoạt động.",
         )
 
+    # Cho access log biết ai gọi request.
+    request.state.user_id = user["id"]
     return user
 
 
@@ -76,3 +79,37 @@ def require_trainer(user: CurrentUserDep) -> dict[str, Any]:
 
 
 TrainerDep = Annotated[dict[str, Any], Depends(require_trainer)]
+
+
+def require_admin(user: CurrentUserDep) -> dict[str, Any]:
+    """Guard for the admin area."""
+    if user["role"] != UserRole.ADMIN.value:
+        raise _error(
+            status.HTTP_403_FORBIDDEN,
+            "FORBIDDEN",
+            "Chỉ quản trị viên mới dùng được chức năng này.",
+        )
+    return user
+
+
+AdminDep = Annotated[dict[str, Any], Depends(require_admin)]
+
+
+def require_permission(permission: Permission):
+    """Dependency factory: the caller's role must grant ``permission`` (403 otherwise)."""
+
+    def guard(user: CurrentUserDep) -> dict[str, Any]:
+        if not has_permission(user["role"], permission):
+            raise _error(
+                status.HTTP_403_FORBIDDEN,
+                "FORBIDDEN",
+                "Tài khoản của bạn không có quyền thực hiện thao tác này.",
+            )
+        return user
+
+    return guard
+
+
+def PermissionDep(permission: Permission) -> Any:  # noqa: N802 - dùng như một kiểu
+    """``user: PermissionDep(Permission.PAYMENTS_VOID)`` in a route signature."""
+    return Annotated[dict[str, Any], Depends(require_permission(permission))]

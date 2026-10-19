@@ -25,6 +25,7 @@ Thumbs.db
 *.temp
 coverage/
 .coverage
+coverage.xml
 htmlcov/
 .pytest_cache/
 .ruff_cache/
