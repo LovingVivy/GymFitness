@@ -289,11 +289,15 @@ def update_user(
         bio=payload.bio,
         specialties=None if payload.specialties is None else list(payload.specialties),
         actor_id=actor_id,
+        utc_offset_minutes=get_settings().gym_utc_offset_minutes,
     )
     if not outcome.succeeded:
         _fail(outcome, "Không thể cập nhật tài khoản.")
     cache.invalidate(cache.CATALOG)
-    return _find_user(db, user_id)
+    user = _find_user(db, user_id)
+    # Khoá/ngưng tài khoản: số buổi PT sắp tới đã được huỷ và hoàn lượt.
+    user.cancelled_sessions = int(outcome.data.get("cancelled_sessions") or 0)
+    return user
 
 
 def reset_password(

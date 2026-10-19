@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "GymFitness API",
-    "description": "Bộ request cho toàn bộ API của backend GymFitness (FastAPI).\n\n**Chuẩn bị**\n\n1. Chạy backend ở môi trường development và nạp đủ các file trong `database/` (01 → 11).\n2. Mở tab *Variables* của collection, điền `admin_password` bằng `ADMIN_DEFAULT_PASSWORD` trong `.env`.\n3. Nếu backend không chạy ở `http://localhost:8000` (Docker: `http://localhost:8080`), sửa `baseUrl`.\n\n**Cách chạy**\n\nCác thư mục được đánh số theo thứ tự phụ thuộc: chạy cả collection bằng *Run collection*, hoặc chạy lần lượt từ trên xuống. Request trước lưu token và id vào biến collection cho request sau, nên không cần chép tay.\n\n- `access_token`: hội viên do collection tự đăng ký (email ngẫu nhiên mỗi lần chạy). Thư mục 03 bật rồi tắt xác thực 2 bước cho tài khoản này; mã 6 số được tính trong pre-request.\n- `pt_token`: PT chuyên môn Gym do quản trị tạo ở thư mục 02 (không dùng tài khoản seed). Thư mục 07 khai lịch cho PT này, thư mục 11 xoá nó khi chạy xong.\n- `admin_token`: quản trị viên mặc định.\n\nĐăng nhập, đăng ký và quên mật khẩu bị giới hạn 10 request/phút mỗi IP; chạy collection quá nhanh nhiều lần liên tiếp có thể nhận 429 `RATE_LIMITED`.\n\nMọi lỗi trả theo khuôn `{\"error\": {\"code\", \"message\", \"details\"}}`. Tài liệu OpenAPI đầy đủ ở `{{baseUrl}}/docs`.\n",
+    "description": "Bộ request cho toàn bộ API của backend GymFitness (FastAPI).\n\n**Chuẩn bị**\n\n1. Chạy backend ở môi trường development và nạp đủ các file trong `database/` (01 → 11).\n2. Mở tab *Variables* của collection, điền `admin_password` bằng `ADMIN_DEFAULT_PASSWORD` trong `.env`.\n3. Nếu backend không chạy ở `http://localhost:8000` (Docker: `http://localhost:8080`), sửa `baseUrl`.\n\n**Cách chạy**\n\nCác thư mục được đánh số theo thứ tự phụ thuộc: chạy cả collection bằng *Run collection*, hoặc chạy lần lượt từ trên xuống. Request trước lưu token và id vào biến collection cho request sau, nên không cần chép tay.\n\n- `access_token`: hội viên do collection tự đăng ký (email ngẫu nhiên mỗi lần chạy). Thư mục 03 bật rồi tắt xác thực 2 bước cho tài khoản này; mã 6 số được tính trong pre-request.\n- `pt_token`: tài khoản PT seed. Thư mục 07 sẽ **thay lịch tuần** của PT này.\n- `admin_token`: quản trị viên mặc định.\n\nĐăng nhập, đăng ký và quên mật khẩu bị giới hạn 10 request/phút mỗi IP; chạy collection quá nhanh nhiều lần liên tiếp có thể nhận 429 `RATE_LIMITED`.\n\nMọi lỗi trả theo khuôn `{\"error\": {\"code\", \"message\", \"details\"}}`. Tài liệu OpenAPI đầy đủ ở `{{baseUrl}}/docs`.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -19,19 +19,15 @@
     },
     {
       "key": "pt_email",
-      "value": "",
+      "value": "pt.gym@ironix.vn",
       "type": "string",
       "description": "Tài khoản PT trong database/04_seed.sql."
     },
     {
       "key": "pt_password",
-      "value": "postman-pt-123",
+      "value": "pt12345678",
       "type": "string",
       "description": "Mật khẩu tài khoản PT seed."
-    },
-    {
-      "key": "pt_user_id",
-      "value": ""
     },
     {
       "key": "admin_login",
@@ -566,6 +562,58 @@
           }
         },
         {
+          "name": "Đăng nhập PT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('pt_token', body.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{pt_email}}\",\n  \"password\": \"{{pt_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Đăng nhập bằng email hoặc tên đăng nhập. Tài khoản bật xác thực 2 bước nhận ``challenge_token`` thay cho access token.\n\nDùng tài khoản PT trong `database/04_seed.sql`. Token lưu vào `pt_token`."
+          }
+        },
+        {
           "name": "Đăng nhập quản trị",
           "event": [
             {
@@ -616,130 +664,6 @@
             },
             "description": "Đăng nhập bằng email hoặc tên đăng nhập. Tài khoản bật xác thực 2 bước nhận ``challenge_token`` thay cho access token.\n\nĐiền biến `admin_password` bằng giá trị `ADMIN_DEFAULT_PASSWORD` trong `.env` trước khi gọi. `admin_login` nhận tên đăng nhập hoặc email. Token lưu vào `admin_token`."
           }
-        },
-        {
-          "name": "Quản trị tạo PT cho bộ test",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.collectionVariables.set('pt_email', 'postman.pt.gym.' + Date.now() + '' + Math.floor(100 + Math.random() * 900) + '@example.com');"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
-                  "if (pm.response.code === 201) {",
-                  "  const body = pm.response.json();",
-                  "  pm.test('Là PT chuyên môn Gym', () => {",
-                  "    pm.expect(body.role).to.eql('PT');",
-                  "    pm.expect(body.specialties).to.include('GYM');",
-                  "  });",
-                  "  pm.collectionVariables.set('pt_user_id', body.id);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/users",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "users"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"full_name\": \"PT Postman (Gym)\",\n  \"email\": \"{{pt_email}}\",\n  \"password\": \"{{pt_password}}\",\n  \"role\": \"PT\",\n  \"specialties\": [\n    \"GYM\",\n    \"MUSCLE_GAIN\"\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{admin_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "description": "Collection tự tạo một PT chuyên môn Gym để dùng ở thư mục 07–08, thay cho tài khoản PT seed (có thể đã bị xoá). PT này được xoá ở thư mục cuối. Hội viên do collection đăng ký mua gói Gym nên chỉ đặt được PT Gym (ADR-018)."
-          }
-        },
-        {
-          "name": "Đăng nhập PT",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "if (pm.response.code === 200) {",
-                  "  const body = pm.response.json();",
-                  "  pm.collectionVariables.set('pt_token', body.access_token);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"{{pt_email}}\",\n  \"password\": \"{{pt_password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "noauth"
-            },
-            "description": "Đăng nhập bằng PT vừa được quản trị tạo ở request trước. Token lưu vào `pt_token`."
-          }
         }
       ],
       "description": "Đăng ký, đăng nhập và lấy token cho ba vai trò: hội viên, PT, quản trị."
@@ -750,19 +674,6 @@
         {
           "name": "Quên mật khẩu",
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// Đăng nhập/đăng ký/quên mật khẩu bị giới hạn 10 request mỗi phút (theo phút đồng hồ).",
-                  "// Thư mục 02 đã dùng 7 lượt, nên chờ sang phút mới để 4 request của thư mục này không bị 429.",
-                  "const waitMs = 60000 - (Date.now() % 60000) + 1000;",
-                  "console.log('Chờ ' + Math.round(waitMs / 1000) + ' giây cho giới hạn đăng nhập mỗi phút...');",
-                  "setTimeout(() => {}, waitMs);"
-                ]
-              }
-            },
             {
               "listen": "test",
               "script": {
@@ -805,24 +716,12 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "Gửi email đặt lại mật khẩu. Luôn trả 202 để không lộ email nào đã đăng ký. Email được gửi qua hàng đợi tác vụ.\n\nLuôn trả 202 để không lộ email nào đã đăng ký. Email chứa liên kết `/reset-password?token=...` được gửi qua hàng đợi tác vụ (xem Mailpit ở http://localhost:8025 khi chạy Docker).\n\nPre-request chờ tới đầu phút kế tiếp (tối đa khoảng 60 giây) vì đăng nhập/đăng ký/quên mật khẩu bị giới hạn 10 request mỗi phút cho mỗi IP."
+            "description": "Gửi email đặt lại mật khẩu. Luôn trả 202 để không lộ email nào đã đăng ký. Email được gửi qua hàng đợi tác vụ.\n\nLuôn trả 202 để không lộ email nào đã đăng ký. Email chứa liên kết `/reset-password?token=...` được gửi qua hàng đợi tác vụ (xem Mailpit ở http://localhost:8025 khi chạy Docker)."
           }
         },
         {
           "name": "Đặt lại mật khẩu",
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// Chưa dán token từ email: gửi token giả để kiểm tra nhánh TOKEN_INVALID (400).",
-                  "if (!pm.collectionVariables.get('reset_token')) {",
-                  "  pm.variables.set('reset_token', 'postman-chua-co-token-tu-email');",
-                  "}"
-                ]
-              }
-            },
             {
               "listen": "test",
               "script": {
@@ -2174,6 +2073,40 @@
               ]
             },
             "description": "Các ô còn trống của một huấn luyện viên. Ô cố định theo lịch tuần, đã trừ lịch nghỉ và buổi người khác đã đặt.\n\nÔ 60 phút trong 14 ngày tới, đã trừ lịch nghỉ và buổi đã có người đặt. Lưu ô đầu tiên vào `slot_start_at`."
+          }
+        },
+        {
+          "name": "Giá một lượt PT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pt-credits/price",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pt-credits",
+                "price"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Giá một lượt PT. Công khai: trang chọn gói và trang đặt PT hiển thị đúng giá đang bán.\n\nCông khai; mọi PT dùng chung giá này."
           }
         },
         {
@@ -4253,10 +4186,7 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                      "if (pm.response.code === 200) {",
-                      "  console.log('Kết quả nhập:', JSON.stringify(pm.response.json()));",
-                      "}"
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
                     ]
                   }
                 }
@@ -4283,7 +4213,7 @@
                     {
                       "key": "file",
                       "type": "file",
-                      "src": "docs/postman/san-pham-mau.csv"
+                      "src": []
                     }
                   ]
                 },
@@ -4297,7 +4227,7 @@
                     }
                   ]
                 },
-                "description": "Nhập sản phẩm từ Excel (.xlsx) hoặc CSV. SKU đã có thì cập nhật, chưa có thì tạo mới. Dòng lỗi được trả về, các dòng khác vẫn lưu.\n\nChọn file `.xlsx`/`.csv` theo file mẫu ở trường `file` (tab Body → form-data). SKU đã có thì cập nhật, chưa có thì tạo mới; dòng lỗi trả về trong `errors` kèm số dòng.\n\nFile mẫu `docs/postman/san-pham-mau.csv` (2 sản phẩm ở trạng thái DRAFT nên không hiện ở cửa hàng; chạy lại thì cập nhật theo SKU). Đường dẫn tính từ thư mục gốc repo; nếu Postman không tìm thấy, chọn lại file ở Body → form-data."
+                "description": "Nhập sản phẩm từ Excel (.xlsx) hoặc CSV. SKU đã có thì cập nhật, chưa có thì tạo mới. Dòng lỗi được trả về, các dòng khác vẫn lưu.\n\nChọn file `.xlsx`/`.csv` theo file mẫu ở trường `file` (tab Body → form-data). SKU đã có thì cập nhật, chưa có thì tạo mới; dòng lỗi trả về trong `errors` kèm số dòng."
               }
             }
           ]
@@ -4521,54 +4451,6 @@
         }
       ],
       "description": "Chạy bằng `admin_token`. Quyền theo vai trò: ADMIN có mọi quyền; MANAGER không quản lý tài khoản nhân sự, gói tập, huỷ giao dịch và nhật ký (403 FORBIDDEN). Mọi thao tác ghi đều được lưu vào nhật ký."
-    },
-    {
-      "name": "11 · Dọn dữ liệu thử",
-      "description": "Xoá các tài khoản phụ collection tạo ra trong lần chạy.",
-      "item": [
-        {
-          "name": "Xoá PT tạo cho bộ test",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/users/{{pt_user_id}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "users",
-                "{{pt_user_id}}"
-              ]
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{admin_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "description": "Xoá mềm PT do collection tạo ở thư mục 02. Chạy được vì buổi PT thử đã được huỷ ở thư mục 08."
-          }
-        }
-      ]
     }
   ]
 }

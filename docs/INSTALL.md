@@ -27,7 +27,7 @@ Yêu cầu: Docker Desktop (Windows/macOS) hoặc Docker Engine + Compose v2 (Li
    docker compose up --build
    ```
 
-   Lần đầu mất vài phút: build image, MySQL nạp `database/01…11` (gồm ≈ 11.000 bản ghi mẫu).
+   Lần đầu mất vài phút: build image, MySQL nạp `database/01…12` (gồm ≈ 11.000 bản ghi mẫu).
 
 4. Mở:
 
@@ -68,11 +68,12 @@ Nạp schema, procedure và dữ liệu mẫu (cần quyền tạo bảng/proced
 Cấu hình kết nối lấy từ `backend/.env` (bước 2) hoặc biến môi trường `MYSQL_*`:
 
 ```bash
-python scripts/apply_sql.py database/01_tables.sql database/02_triggers.sql database/03_procedures.sql database/04_seed.sql database/05_procedures_pt.sql database/06_procedures_payment.sql database/07_pt_schedule.sql database/08_admin.sql database/09_admin_shop.sql database/10_seed_demo.sql database/11_platform.sql
+python scripts/apply_sql.py database/01_tables.sql database/02_triggers.sql database/03_procedures.sql database/04_seed.sql database/05_procedures_pt.sql database/06_procedures_payment.sql database/07_pt_schedule.sql database/08_admin.sql database/09_admin_shop.sql database/10_seed_demo.sql database/11_platform.sql database/12_lifecycle.sql
 ```
 
 `10_seed_demo.sql` là dữ liệu mẫu, có thể bỏ. Database đã có từ trước chỉ cần nạp lại các file
-đã thay đổi (các file đều chạy lại an toàn), ví dụ `08_admin.sql`, `09_admin_shop.sql`, `11_platform.sql`.
+đã thay đổi (các file đều chạy lại an toàn), ví dụ `03_procedures.sql`, `07_pt_schedule.sql`, `08_admin.sql`, `09_admin_shop.sql`,
+`11_platform.sql`, `12_lifecycle.sql`.
 
 ### Bước 2 — Backend
 
@@ -103,6 +104,9 @@ Nếu có Redis và muốn tác vụ nền chạy ở tiến trình riêng (gi�
 ```bash
 cd backend && python -m app.tasks.worker
 ```
+
+API tự chạy bảo trì định kỳ mỗi 5 phút (chuyển gói hết hạn, nhắc gia hạn, tự đóng buổi PT
+quá hạn). Khi đã chạy worker riêng có thể đặt `MAINTENANCE_IN_API=false`.
 
 Không cấu hình `SMTP_HOST` thì email được ghi ra `backend/storage/outbox/*.eml` (mở bằng Outlook/Thunderbird hoặc trình soạn thảo).
 
@@ -142,7 +146,7 @@ Tài khoản mẫu trong `10_seed_demo.sql` không đăng nhập được; muố
 | Hiện tượng | Cách xử lý |
 | --- | --- |
 | `JWT_SECRET_KEY chưa được cấu hình an toàn` | Đặt chuỗi ≥ 32 ký tự hoặc chạy với `APP_ENV=development` |
-| `PROCEDURE ... does not exist` hoặc sai số tham số | Nạp lại file SQL tương ứng (`08`, `09`, `11`) |
+| `PROCEDURE ... does not exist` hoặc sai số tham số | Nạp lại file SQL tương ứng (`03`, `07`, `08`, `09`, `11`, `12`) |
 | `Redis không khả dụng, dùng chế độ dự phòng` trong log | Bình thường khi không chạy Redis; API vẫn hoạt động |
 | PDF không có dấu tiếng Việt | Đặt `PDF_FONT_PATH` tới một file `.ttf` có tiếng Việt (DejaVuSans, Arial) |
 | Không thấy email đặt lại mật khẩu | Docker: xem http://localhost:8025. Không Docker: xem `backend/storage/outbox` |

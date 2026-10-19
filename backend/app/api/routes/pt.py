@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query, status
 
 from app.api.deps import CurrentUserDep, DbDep, TrainerDep
+from app.core.config import get_settings
 from app.schemas.pt import (
     PtBookingCancelRequest,
     PtBookingCreateRequest,
@@ -12,6 +13,7 @@ from app.schemas.pt import (
     PtCancelResponse,
     PtCreditPurchaseRequest,
     PtCreditSummary,
+    PtPrice,
 )
 from app.services import pt as pt_service
 from app.services import pt_schedule as schedule_service
@@ -22,6 +24,15 @@ router = APIRouter(tags=["pt"])
 # --------------------------------------------------------------------------
 # Wallet
 # --------------------------------------------------------------------------
+
+
+@router.get("/pt-credits/price", response_model=PtPrice, summary="Giá một lượt PT")
+def read_pt_price() -> PtPrice:
+    """Công khai: trang chọn gói và trang đặt PT hiển thị đúng giá đang bán."""
+    settings = get_settings()
+    return PtPrice(
+        unit_price=settings.pt_session_price, session_minutes=settings.pt_session_minutes
+    )
 
 
 @router.get("/pt-credits", response_model=PtCreditSummary, summary="Ví lượt PT của tôi")

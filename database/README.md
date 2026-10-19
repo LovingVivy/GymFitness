@@ -26,6 +26,8 @@ Yêu cầu: MySQL 8.0 trở lên.
 20. Mở hoặc dán toàn bộ nội dung `10_seed_demo.sql`, sau đó chọn **Execute All** (dữ liệu mẫu, không bắt buộc).
 21. Mở SQL tab thứ mười một.
 22. Mở hoặc dán toàn bộ nội dung `11_platform.sql`, sau đó chọn **Execute All**.
+23. Mở SQL tab thứ mười hai.
+24. Mở hoặc dán toàn bộ nội dung `12_lifecycle.sql`, sau đó chọn **Execute All**.
 
 File đầu tiên tự tạo và chọn database `gymfitness`. Các file sau cũng tự chạy `USE gymfitness` trước khi tạo trigger/procedure/seed.
 
@@ -43,6 +45,7 @@ mysql -u root -p < database/08_admin.sql
 mysql -u root -p < database/09_admin_shop.sql
 mysql -u root -p < database/10_seed_demo.sql
 mysql -u root -p < database/11_platform.sql
+mysql -u root -p < database/12_lifecycle.sql
 ```
 
 ## Script Python (khuyến nghị)
@@ -62,10 +65,12 @@ python scripts/apply_sql.py database/08_admin.sql
 python scripts/apply_sql.py database/09_admin_shop.sql
 python scripts/apply_sql.py database/10_seed_demo.sql
 python scripts/apply_sql.py database/11_platform.sql
+python scripts/apply_sql.py database/12_lifecycle.sql
 ```
 
 Database đã có từ trước: các file đều chạy lại an toàn. Khi cập nhật mã nguồn, nạp lại
-`08_admin.sql`, `09_admin_shop.sql` (thêm sắp xếp và khoá phiên bản) và `11_platform.sql`.
+`03_procedures.sql` (gia hạn nối tiếp, hồ sơ hiện gói hết hạn), `07_pt_schedule.sql` (chặn
+đặt PT bị khoá), `08_admin.sql`, `09_admin_shop.sql`, `11_platform.sql` và `12_lifecycle.sql`.
 
 ## Kiểm tra kết quả
 
@@ -229,6 +234,19 @@ lúc khởi động từ `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_DEFAULT_PASSWOR
 Các procedure danh sách trong `08_admin.sql`/`09_admin_shop.sql` nhận thêm `p_sort`
 (`sp_admin_user_list`, `sp_admin_checkin_list`, `sp_admin_payment_list`, `sp_admin_product_list`);
 `sp_admin_plan_save` và `sp_admin_product_save` nhận `p_expected_version` (khoá lạc quan).
+
+### Vòng đời gói và buổi PT (`12_lifecycle.sql`, ADR-026)
+
+| Procedure | Mục đích |
+| --- | --- |
+| `sp_subscription_expire_due` | Chuyển gói quá hạn sang `EXPIRED`, ghi lịch sử, thông báo (bỏ qua gói đã gia hạn) |
+| `sp_subscription_reminders_due` | Nhắc gia hạn ở mốc ≤ 7, ≤ 3, ≤ 1 ngày; mỗi mốc một lần (`idempotency_key`) |
+| `sp_pt_session_autoclose` | Buổi PT kết thúc quá 24 giờ mà PT chưa chốt: tự ghi `COMPLETED`, trừ lượt |
+| `sp_pt_cancel_upcoming_for_user` | Gọi từ `sp_admin_user_update` khi khoá/ngưng tài khoản: huỷ buổi chưa bắt đầu, hoàn lượt |
+| `sp_profile_memberships` | Mọi gói còn hiệu lực của tài khoản (một dòng mỗi loại hình, tính cả chuỗi gia hạn) |
+
+Backend gọi ba procedure định kỳ mỗi 5 phút (`app/tasks/maintenance.py`): trong worker, hoặc
+trong API khi `MAINTENANCE_IN_API=true` (mặc định khi chạy không Docker).
 
 ### Luồng PT end-to-end
 

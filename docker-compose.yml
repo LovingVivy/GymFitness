@@ -58,6 +58,7 @@ services:
       # Dữ liệu mẫu cho demo; bỏ dòng này khi triển khai thật.
       - ./database/10_seed_demo.sql:/docker-entrypoint-initdb.d/10_seed_demo.sql:ro
       - ./database/11_platform.sql:/docker-entrypoint-initdb.d/11_platform.sql:ro
+      - ./database/12_lifecycle.sql:/docker-entrypoint-initdb.d/12_lifecycle.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
@@ -79,7 +80,10 @@ services:
     build:
       context: ./backend
     restart: unless-stopped
-    environment: *backend-env
+    environment:
+      <<: *backend-env
+      # Worker chạy bảo trì định kỳ (hết hạn gói, nhắc gia hạn, đóng buổi PT quá hạn).
+      MAINTENANCE_IN_API: "false"
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:

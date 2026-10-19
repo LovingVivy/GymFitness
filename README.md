@@ -57,7 +57,7 @@ python -m venv .venv
 ```
 
 ```bash
-python scripts/apply_sql.py database/01_tables.sql database/02_triggers.sql database/03_procedures.sql database/04_seed.sql database/05_procedures_pt.sql database/06_procedures_payment.sql database/07_pt_schedule.sql database/08_admin.sql database/09_admin_shop.sql database/10_seed_demo.sql database/11_platform.sql
+python scripts/apply_sql.py database/01_tables.sql database/02_triggers.sql database/03_procedures.sql database/04_seed.sql database/05_procedures_pt.sql database/06_procedures_payment.sql database/07_pt_schedule.sql database/08_admin.sql database/09_admin_shop.sql database/10_seed_demo.sql database/11_platform.sql database/12_lifecycle.sql
 ```
 
 ```bash
@@ -102,7 +102,7 @@ integration test gọi API thật trên MySQL. Coverage tối thiểu cấu hìn
 backend/          FastAPI: api (route), services (nghiệp vụ), repositories (gọi procedure),
                   core (config, bảo mật, cache, rate limit, log, PDF/Excel), tasks (hàng đợi, worker)
 client/           React SPA, Dockerfile + nginx.conf
-database/         01…11 *.sql: bảng, trigger, stored procedure, dữ liệu mẫu, migration
+database/         01…12 *.sql: bảng, trigger, stored procedure, dữ liệu mẫu, migration
 docs/             Tài liệu dự án và Postman collection
 scripts/          apply_sql.py (nạp file SQL có DELIMITER)
 .github/workflows CI/CD

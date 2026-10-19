@@ -273,13 +273,22 @@ Bên còn lại nhận thông báo trong ứng dụng và email. Không bên nà
 
 Sau giờ bắt đầu, PT chốt `COMPLETED` (đã dạy) hoặc `NO_SHOW` (hội viên vắng). Cả hai đều chuyển lượt từ `reserved` sang `used`.
 
-### 9.4. Vòng đời buổi PT
+### 9.4. Trường hợp đặc biệt
+
+- **PT không chốt buổi:** kết thúc quá 24 giờ mà chưa chốt thì hệ thống tự ghi `COMPLETED`, trừ lượt và báo hội viên (hội viên vắng thì liên hệ quầy để điều chỉnh).
+- **Khoá tài khoản PT:** mọi buổi chưa bắt đầu bị huỷ, hội viên được hoàn lượt và nhận thông báo; PT không còn xuất hiện, không đặt được.
+- **Khoá tài khoản hội viên:** buổi chưa bắt đầu của hội viên bị huỷ, lượt được hoàn, PT nhận thông báo.
+- **Giá:** mọi PT dùng chung giá một lượt; đơn giá trong hồ sơ PT chỉ dùng nội bộ.
+
+### 9.5. Vòng đời buổi PT
 
 ```text
 ACCEPTED ──► COMPLETED   (PT, sau giờ bắt đầu)       trừ lượt
          ├─► NO_SHOW     (PT, sau giờ bắt đầu)       trừ lượt
          ├─► CANCELLED   (PT, trước giờ, có lý do)   hoàn lượt
-         └─► CANCELLED   (hội viên, trước giờ)       hoàn lượt nếu huỷ sớm
+         ├─► CANCELLED   (hội viên, trước giờ)       hoàn lượt nếu huỷ sớm
+         ├─► CANCELLED   (khoá tài khoản PT/hội viên) hoàn lượt
+         └─► COMPLETED   (hệ thống, quá 24 giờ chưa chốt) trừ lượt
 ```
 
 Mọi thay đổi lượt PT được ghi vào sổ cái `pt_credit_ledger` trong cùng transaction với trạng thái buổi.
@@ -313,6 +322,11 @@ Thông báo gần hết hạn được tạo tại các mốc đề xuất:
 - Khi subscription hết hạn.
 
 Thông báo gia hạn phải có nút **Gia hạn ngay** và dẫn user đến đúng gói hiện tại.
+
+Đã hiện thực (ADR-026): tác vụ định kỳ mỗi 5 phút gửi nhắc ở mốc ≤ 7, ≤ 3, ≤ 1 ngày (thông báo
+trong ứng dụng + email, mỗi mốc một lần, bỏ qua gói đã gia hạn) và chuyển gói quá hạn sang
+`EXPIRED` kèm thông báo/email "đã hết hạn". Gia hạn khi gói còn hạn thì gói mới **nối tiếp** sau
+ngày hết hạn hiện tại, không mất ngày còn lại.
 
 ---
 

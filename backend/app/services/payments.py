@@ -30,6 +30,7 @@ from app.core.payment_code import extract_payment_number
 from app.core.permissions import Permission, has_permission
 from app.core.security import utcnow
 from app.db.base import new_uuid
+from app.repositories import admin as admin_repository
 from app.repositories import payments as payments_repository
 from app.repositories import profile as profile_repository
 from app.repositories import pt as pt_repository
@@ -200,6 +201,11 @@ def simulate_payment(db: Session, user: Mapping[str, Any], payment_id: str) -> P
     if not outcome.succeeded:
         _raise_for_outcome(outcome)
 
+    if is_admin:
+        # Nhân sự xác nhận qua đường này cũng phải để lại dấu vết như nút trong trang quản trị.
+        admin_repository.log_payment_confirm(
+            db, payment_id=payment["id"], method=None, actor_id=user["id"]
+        )
     _after_paid(db, payment["id"])
     return profile_service.get_profile(db, user["id"])
 

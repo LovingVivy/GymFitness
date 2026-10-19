@@ -94,6 +94,12 @@ class Settings(BaseSettings):
     # "auto": Redis nếu kết nối được, không thì chạy trong luồng nền của API.
     # "redis": chỉ đẩy vào Redis (cần tiến trình worker). "thread" | "inline": không cần worker.
     job_queue_mode: str = "auto"
+    # Bảo trì định kỳ (hết hạn gói, nhắc gia hạn, tự đóng buổi PT quá hạn).
+    # Docker có worker riêng nên tắt ở API; chạy không Docker thì API tự làm.
+    maintenance_in_api: bool = True
+    maintenance_interval_seconds: int = 300
+    # Buổi PT kết thúc quá N giờ mà PT chưa chốt thì tự ghi nhận hoàn thành.
+    pt_autoclose_hours: int = 24
 
     # --- Email --------------------------------------------------------------
     # SMTP_HOST trống = không gửi thật, email được ghi vào storage/outbox và log.

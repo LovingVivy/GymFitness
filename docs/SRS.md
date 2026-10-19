@@ -99,6 +99,8 @@ Mức ưu tiên: **B** = bắt buộc, **N** = nên có, **T** = tuỳ chọn. M
 | FR-PAY-03 | Webhook SePay xác thực API key, khớp mã và số tiền rồi kích hoạt quyền lợi | B |
 | FR-PAY-04 | Quản trị/quản lý xác nhận thu tiền thủ công; quản trị huỷ giao dịch đang chờ | B |
 | FR-PAY-05 | Mỗi giao dịch đã thu có hoá đơn PDF; email biên nhận đính kèm hoá đơn | B |
+| FR-PAY-06 | Gia hạn khi gói cùng loại hình còn hạn: gói mới nối tiếp sau ngày hết hạn | B |
+| FR-PAY-07 | Gói quá hạn chuyển `EXPIRED`; nhắc gia hạn trước 7/3/1 ngày (in-app + email) | B |
 
 ### 3.4. Huấn luyện viên và buổi PT
 
@@ -110,6 +112,9 @@ Mức ưu tiên: **B** = bắt buộc, **N** = nên có, **T** = tuỳ chọn. M
 | FR-PT-04 | PT huỷ trước giờ phải có lý do, luôn hoàn lượt; hội viên huỷ sớm ≥ 12 giờ được hoàn lượt | B |
 | FR-PT-05 | PT chốt hoàn thành hoặc vắng mặt sau giờ bắt đầu; lượt chuyển sang đã dùng | B |
 | FR-PT-06 | Thông báo trong ứng dụng và email cho bên còn lại khi buổi bị huỷ | B |
+| FR-PT-07 | Buổi kết thúc quá 24 giờ chưa chốt được tự ghi hoàn thành | N |
+| FR-PT-08 | Khoá tài khoản PT/hội viên tự huỷ buổi chưa bắt đầu và hoàn lượt; PT bị khoá không đặt được | B |
+| FR-PT-09 | Mọi lượt PT bán cùng một giá, giao diện đọc giá từ API | B |
 
 ### 3.5. Quản trị
 

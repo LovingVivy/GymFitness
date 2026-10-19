@@ -351,6 +351,8 @@ END$$
 -- sp_admin_user_update
 -- Tham số NULL = giữ nguyên. p_phone = '' để xoá số điện thoại.
 -- Vai trò không đổi được (hồ sơ hội viên/PT gắn với vai trò).
+-- Khoá/ngưng tài khoản: huỷ các buổi PT chưa bắt đầu và hoàn lượt (ADR-026),
+-- trả cancelled_sessions. Cần 12_lifecycle.sql (sp_pt_cancel_upcoming_for_user).
 -- ============================================================
 CREATE PROCEDURE sp_admin_user_update(
   IN p_user_id CHAR(36),
@@ -362,10 +364,13 @@ CREATE PROCEDURE sp_admin_user_update(
   IN p_hourly_rate NUMERIC(14,2),
   IN p_bio TEXT,
   IN p_specialties JSON,
-  IN p_actor_id CHAR(36)
+  IN p_actor_id CHAR(36),
+  IN p_utc_offset_minutes INT
 )
 BEGIN
   DECLARE v_role VARCHAR(16) DEFAULT NULL;
+  DECLARE v_old_status VARCHAR(16) DEFAULT NULL;
+  DECLARE v_cancelled INT DEFAULT 0;
   DECLARE v_before JSON DEFAULT NULL;
   DECLARE v_trainer_id CHAR(36) DEFAULT NULL;
   DECLARE v_error_code VARCHAR(40) DEFAULT NULL;
@@ -376,7 +381,8 @@ BEGIN
     ROLLBACK;
     SELECT 'DUPLICATE' AS error_code,
            'Email, số điện thoại hoặc tên đăng nhập đã được dùng.' AS error_message,
-           NULL AS user_id;
+           NULL AS user_id,
+           0 AS cancelled_sessions;
   END;
 
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -384,15 +390,16 @@ BEGIN
     ROLLBACK;
     SELECT 'INTERNAL_ERROR' AS error_code,
            'Không thể cập nhật tài khoản do lỗi hệ thống.' AS error_message,
-           NULL AS user_id;
+           NULL AS user_id,
+           0 AS cancelled_sessions;
   END;
 
   START TRANSACTION;
 
-  SELECT u.role,
+  SELECT u.role, u.status,
          JSON_OBJECT('email', u.email, 'username', u.username, 'phone', u.phone,
                      'status', u.status, 'full_name', p.full_name)
-  INTO v_role, v_before
+  INTO v_role, v_old_status, v_before
   FROM users u
   LEFT JOIN user_profiles p ON p.user_id = u.id
   WHERE u.id = p_user_id AND u.deleted_at IS NULL
@@ -429,6 +436,14 @@ BEGIN
 
     IF p_full_name IS NOT NULL THEN
       UPDATE user_profiles SET full_name = p_full_name WHERE user_id = p_user_id;
+    END IF;
+
+    -- Khoá hoặc ngưng: buổi PT sắp tới không thể diễn ra, huỷ và hoàn lượt ngay.
+    IF p_status IN ('SUSPENDED', 'INACTIVE') AND v_old_status = 'ACTIVE' THEN
+      CALL sp_pt_cancel_upcoming_for_user(
+        p_user_id, p_actor_id,
+        IF(v_role = 'PT', 'Huấn luyện viên tạm ngưng nhận buổi', 'Tài khoản hội viên bị tạm khoá'),
+        COALESCE(p_utc_offset_minutes, 420), v_cancelled);
     END IF;
 
     -- Giữ hồ sơ hội viên đồng bộ với tài khoản.
@@ -474,7 +489,8 @@ BEGIN
 
   SELECT v_error_code AS error_code,
          v_error_message AS error_message,
-         CASE WHEN v_error_code IS NULL THEN p_user_id ELSE NULL END AS user_id;
+         CASE WHEN v_error_code IS NULL THEN p_user_id ELSE NULL END AS user_id,
+         v_cancelled AS cancelled_sessions;
 END$$
 
 -- ============================================================
@@ -571,7 +587,8 @@ BEGIN
   ELSEIF v_upcoming > 0 THEN
     SET v_error_code = 'HAS_UPCOMING_SESSIONS';
     SET v_error_message = CONCAT('Tài khoản còn ', v_upcoming,
-                                 ' buổi PT sắp tới. Hãy huỷ các buổi này trước.');
+                                 ' buổi PT chưa kết thúc. Hãy tạm khoá tài khoản trước: ',
+                                 'các buổi chưa bắt đầu sẽ được huỷ và hoàn lượt.');
   END IF;
 
   IF v_error_code IS NULL THEN

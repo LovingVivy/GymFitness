@@ -55,7 +55,7 @@ jobs:
           python -m ruff check .
           python -m ruff format --check .
 
-      # Thứ tự theo tiền tố số của tên file: 01_tables … 11_platform.
+      # Thứ tự theo tiền tố số của tên file: 01_tables … 12_lifecycle.
       - name: Create schema, procedures and seed data
         run: python scripts/apply_sql.py database/[0-9][0-9]_*.sql
 

@@ -84,6 +84,8 @@ class AdminUser(BaseModel):
     hourly_rate: MoneyOut | None = None
     bio: str | None = None
     specialties: list[str] = Field(default_factory=list)
+    # Chỉ có khi vừa khoá/ngưng tài khoản: số buổi PT sắp tới đã tự huỷ và hoàn lượt.
+    cancelled_sessions: int = 0
     # PT chưa khai lịch làm việc thì hội viên chưa thấy để đặt.
     has_schedule: bool = False
     active_plan_name: str | None = None

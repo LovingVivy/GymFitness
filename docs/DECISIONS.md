@@ -149,3 +149,16 @@
 - **Trạng thái:** Accepted
 - **Quyết định:** Các procedure danh sách quản trị nhận `p_sort` (tên cột, tiền tố `-` là giảm dần, chỉ nhận giá trị trong whitelist ở API) và xếp hạng bằng `ROW_NUMBER() OVER (...)` trong bảng dẫn xuất rồi sắp theo một cột số.
 - **Lý do:** Cách viết `ORDER BY CASE ... END` nhiều khoá làm MySQL 8.0 sập (lỗi filesort) khi procedure chạy lại trong cùng kết nối với `LIMIT` khác; xếp hạng bằng window function tránh được lỗi và không cần SQL động.
+
+## ADR-026 — Vòng đời gói tập và buổi PT
+
+- **Trạng thái:** Accepted
+- **Quyết định:**
+  - **Hết hạn:** tác vụ định kỳ (5 phút) chuyển gói quá `end_at` sang `EXPIRED`, ghi lịch sử, gửi thông báo và email nếu chưa gia hạn. Hồ sơ tự hiện `EXPIRED` ngay cả khi tác vụ chưa chạy.
+  - **Gia hạn nối tiếp:** thanh toán gói cùng loại hình khi gói cũ còn hạn thì gói mới bắt đầu đúng lúc gói cũ hết hạn, không mất ngày còn lại. Hồ sơ trả mọi gói còn hiệu lực (`memberships`) và tính tổng thời hạn theo cả chuỗi.
+  - **Nhắc gia hạn:** thông báo trong ứng dụng và email ở các mốc ≤ 7, ≤ 3, ≤ 1 ngày, mỗi mốc một lần (`notifications.idempotency_key`), bỏ qua gói đã có gói nối tiếp.
+  - **Buổi PT quá hạn:** buổi kết thúc quá 24 giờ (`PT_AUTOCLOSE_HOURS`) mà PT chưa chốt được tự ghi `COMPLETED`, trừ lượt và báo hội viên.
+  - **Khoá tài khoản:** tạm khoá/ngưng PT hoặc hội viên tự huỷ các buổi PT chưa bắt đầu, hoàn lượt và báo bên còn lại. PT bị khoá không còn giờ trống và không đặt được kể cả khi biết id. Xoá tài khoản vẫn bị chặn khi còn buổi chưa kết thúc.
+  - **Giá PT:** mọi lượt PT bán cùng một giá (`PT_SESSION_PRICE`), frontend đọc từ `GET /pt-credits/price`; `hourly_rate` của PT chỉ là đơn giá tham khảo nội bộ.
+  - **Nhân sự ở khu hội viên:** tài khoản PT/Manager/Admin không mua gói, không đặt PT; trang Hồ sơ chỉ hiện phần tài khoản và bảo mật. Xác nhận thu tiền qua `/payments/{id}/mark-paid` bởi nhân sự cũng ghi nhật ký `PAYMENT_CONFIRM`.
+- **Lý do:** Trước đây gói hết hạn vẫn hiện "Đang hoạt động", gia hạn sớm làm mất ngày còn lại, khoá PT để lại buổi treo, buổi PT không chốt giữ lượt của hội viên vĩnh viễn và giá PT trên giao diện bị ghi cứng.

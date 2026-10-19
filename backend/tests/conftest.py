@@ -21,6 +21,8 @@ os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 os.environ.setdefault("CACHE_ENABLED", "false")
 os.environ.setdefault("REDIS_ENABLED", "false")
 os.environ.setdefault("JOB_QUEUE_MODE", "inline")
+# Bảo trì định kỳ chỉ chạy khi test gọi trực tiếp maintenance.run_once().
+os.environ.setdefault("MAINTENANCE_IN_API", "false")
 
 import pymysql  # noqa: E402
 import pytest  # noqa: E402

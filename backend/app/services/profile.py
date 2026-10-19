@@ -10,6 +10,7 @@ import base64
 import binascii
 import re
 from collections.abc import Mapping
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -19,10 +20,12 @@ from sqlalchemy.orm import Session
 
 from app.core import cache, storage
 from app.core.config import get_settings, pt_session_price
+from app.core.gym_time import now_utc, to_local
 from app.core.payment_code import new_payment_number
 from app.core.permissions import sorted_permissions
 from app.db.base import new_uuid
 from app.repositories import auth as auth_repository
+from app.repositories import lifecycle as lifecycle_repository
 from app.repositories import profile as profile_repository
 from app.schemas.profile import (
     MembershipSummary,
@@ -86,27 +89,61 @@ def _raise_for_outcome(
     raise _error(status_code, code, outcome.error_message or default_message)
 
 
+def _local_days(start: datetime | None, end: datetime | None) -> int | None:
+    """Whole gym-local calendar days between two instants (UTC+7, not UTC dates)."""
+    if start is None or end is None:
+        return None
+    return (to_local(end).date() - to_local(start).date()).days
+
+
+def _membership(
+    *,
+    subscription_id: str,
+    status: str,
+    start_at: datetime | None,
+    end_at: datetime | None,
+    coverage_start_at: datetime | None,
+    plan: Mapping[str, Any],
+) -> MembershipSummary:
+    remaining = _local_days(now_utc(), end_at)
+    return MembershipSummary(
+        subscription_id=subscription_id,
+        status=status,
+        plan_id=plan["plan_id"],
+        plan_code=plan["plan_code"],
+        plan_name=plan["plan_name"],
+        activity_type=plan["activity_type"],
+        duration_months=plan.get("duration_months"),
+        duration_days=plan.get("duration_days"),
+        price=plan["price"],
+        currency=plan["currency"],
+        start_at=start_at,
+        end_at=end_at,
+        days_remaining=max(0, remaining) if remaining is not None else None,
+        # Gia hạn sớm: tổng thời hạn tính từ đầu chuỗi gói nối tiếp.
+        total_days=_local_days(coverage_start_at or start_at, end_at),
+    )
+
+
 def _membership_from_row(row: Mapping[str, Any]) -> MembershipSummary | None:
     if row.get("subscription_id") is None or row.get("plan_id") is None:
         return None
-
-    days_remaining = row.get("days_remaining")
-    total_days = row.get("total_days")
-    return MembershipSummary(
+    return _membership(
         subscription_id=row["subscription_id"],
         status=row["subscription_status"],
-        plan_id=row["plan_id"],
-        plan_code=row["plan_code"],
-        plan_name=row["plan_name"],
-        activity_type=row["plan_activity_type"],
-        duration_months=row.get("plan_duration_months"),
-        duration_days=row.get("plan_duration_days"),
-        price=row["plan_price"],
-        currency=row["plan_currency"],
         start_at=row.get("subscription_start_at"),
         end_at=row.get("subscription_end_at"),
-        days_remaining=max(0, days_remaining) if days_remaining is not None else None,
-        total_days=total_days,
+        coverage_start_at=row.get("coverage_start_at"),
+        plan={
+            "plan_id": row["plan_id"],
+            "plan_code": row["plan_code"],
+            "plan_name": row["plan_name"],
+            "activity_type": row["plan_activity_type"],
+            "duration_months": row.get("plan_duration_months"),
+            "duration_days": row.get("plan_duration_days"),
+            "price": row["plan_price"],
+            "currency": row["plan_currency"],
+        },
     )
 
 
@@ -151,6 +188,17 @@ def get_profile(db: Session, user_id: str) -> ProfileResponse:
         raise _error(status.HTTP_404_NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy tài khoản.")
     profile = _to_profile(row)
     profile.two_factor_enabled = bool(auth_repository.get_two_factor_secret(db, user_id))
+    profile.memberships = [
+        _membership(
+            subscription_id=item["subscription_id"],
+            status=item["status"],
+            start_at=item.get("start_at"),
+            end_at=item.get("end_at"),
+            coverage_start_at=item.get("coverage_start_at"),
+            plan=item,
+        )
+        for item in lifecycle_repository.memberships(db, user_id)
+    ]
     return profile
 
 

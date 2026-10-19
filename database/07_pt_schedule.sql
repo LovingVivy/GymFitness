@@ -275,13 +275,16 @@ END$$
 -- ============================================================
 CREATE PROCEDURE sp_trainer_schedule_get(IN p_trainer_id CHAR(36))
 BEGIN
-  SELECT id,
-         weekday,
-         TIME_FORMAT(start_time, '%H:%i') AS start_time,
-         TIME_FORMAT(end_time, '%H:%i') AS end_time
-  FROM trainer_weekly_schedule
-  WHERE trainer_id = p_trainer_id
-  ORDER BY weekday, start_time;
+  -- PT bị khoá/ngưng (tài khoản hoặc hồ sơ) không còn giờ trống cho hội viên.
+  SELECT ws.id,
+         ws.weekday,
+         TIME_FORMAT(ws.start_time, '%H:%i') AS start_time,
+         TIME_FORMAT(ws.end_time, '%H:%i') AS end_time
+  FROM trainer_weekly_schedule ws
+  JOIN trainer_profiles t ON t.id = ws.trainer_id AND t.deleted_at IS NULL AND t.status = 'ACTIVE'
+  JOIN users u ON u.id = t.user_id AND u.deleted_at IS NULL AND u.status = 'ACTIVE'
+  WHERE ws.trainer_id = p_trainer_id
+  ORDER BY ws.weekday, ws.start_time;
 END$$
 
 -- ============================================================
@@ -531,8 +534,10 @@ BEGIN
   WHERE m.user_id = p_user_id AND m.deleted_at IS NULL
   LIMIT 1;
 
+  -- Tài khoản PT bị khoá thì không đặt được dù hồ sơ PT vẫn ACTIVE.
   SELECT t.user_id INTO v_trainer_user_id
   FROM trainer_profiles t
+  JOIN users tu ON tu.id = t.user_id AND tu.deleted_at IS NULL AND tu.status = 'ACTIVE'
   WHERE t.id = p_trainer_id AND t.deleted_at IS NULL AND t.status = 'ACTIVE'
   LIMIT 1
   FOR UPDATE;

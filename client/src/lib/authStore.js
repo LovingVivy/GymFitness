@@ -50,6 +50,24 @@ function periodLabel(membership) {
  * Everything here comes from the database; the client no longer invents
  * membership or body data.
  */
+function normalizeMembership(membership) {
+  if (!membership) return null;
+  return {
+    status: membership.status,
+    planCode: membership.plan_code,
+    name: membership.plan_name,
+    activityType: membership.activity_type,
+    category: ACTIVITY_LABELS[membership.activity_type] ?? membership.activity_type,
+    period: periodLabel(membership),
+    price: membership.price,
+    currency: membership.currency,
+    startAt: membership.start_at,
+    endAt: membership.end_at,
+    daysRemaining: membership.days_remaining,
+    totalDays: membership.total_days
+  };
+}
+
 function normalizeProfile(profile) {
   const membership = profile.membership;
 
@@ -73,6 +91,8 @@ function normalizeProfile(profile) {
     createdAt: profile.created_at,
     lastLoginAt: profile.last_login_at,
     permissions: profile.permissions ?? [],
+    // Mọi gói còn hiệu lực (một Gym, một Yoga); `membership` là gói hết hạn muộn nhất.
+    memberships: (profile.memberships ?? []).map(normalizeMembership),
     twoFactorEnabled: Boolean(profile.two_factor_enabled),
     ptCredits: {
       purchased: profile.pt_credits?.purchased ?? 0,

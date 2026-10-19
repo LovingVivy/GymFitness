@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+from datetime import datetime
 from decimal import Decimal
 
 from app.core import mailer, pdf
@@ -89,6 +90,45 @@ def send_pt_cancellation(job: JobContext) -> None:
             when=local_label(booking["start_at"]),
             reason=booking.get("cancellation_reason"),
             refunded_note=note,
+        )
+    )
+    return None
+
+
+def _plans_link() -> str:
+    return f"{get_settings().frontend_base_url.rstrip('/')}/plans"
+
+
+def _end_label(value: str) -> str:
+    return local_label(datetime.fromisoformat(value))
+
+
+@handler("email.membership_expiring")
+def send_membership_expiring(job: JobContext) -> None:
+    params = job.parameters
+    mailer.send(
+        emails.membership_expiring(
+            to=params["email"],
+            full_name=params.get("full_name"),
+            plan_name=params["plan_name"],
+            end_label=_end_label(params["end_at"]),
+            days_left=int(params["days_left"]),
+            link=_plans_link(),
+        )
+    )
+    return None
+
+
+@handler("email.membership_expired")
+def send_membership_expired(job: JobContext) -> None:
+    params = job.parameters
+    mailer.send(
+        emails.membership_expired(
+            to=params["email"],
+            full_name=params.get("full_name"),
+            plan_name=params["plan_name"],
+            end_label=_end_label(params["end_at"]),
+            link=_plans_link(),
         )
     )
     return None

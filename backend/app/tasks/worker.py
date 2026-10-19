@@ -22,6 +22,7 @@ from app.core.logging import configure_logging
 from app.core.redis_client import get_redis, mark_unavailable
 from app.db.session import SessionLocal
 from app.repositories import jobs as jobs_repository
+from app.tasks import maintenance
 from app.tasks.queue import QUEUE_KEY, run
 
 logger = logging.getLogger("app.tasks.worker")
@@ -54,7 +55,15 @@ def main() -> None:
     logger.info("Worker đã khởi động.")
 
     last_sweep = 0.0
+    last_maintenance = 0.0
     while not _stopping:
+        if time.monotonic() - last_maintenance > settings.maintenance_interval_seconds:
+            try:
+                maintenance.run_once()
+            except Exception:  # noqa: BLE001 - database tạm mất kết nối
+                logger.exception("Bảo trì định kỳ thất bại.")
+            last_maintenance = time.monotonic()
+
         if time.monotonic() - last_sweep > SWEEP_SECONDS:
             try:
                 recovered = sweep()

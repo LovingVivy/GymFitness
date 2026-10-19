@@ -65,7 +65,10 @@ services:
   backend:
     image: ${IMAGE_PREFIX}-backend:${IMAGE_TAG:-latest}
     restart: always
-    environment: *backend-env
+    environment:
+      <<: *backend-env
+      # Worker chạy bảo trì định kỳ (hết hạn gói, nhắc gia hạn, đóng buổi PT quá hạn).
+      MAINTENANCE_IN_API: "false"
     volumes:
       - app_storage:/app/storage
     depends_on:

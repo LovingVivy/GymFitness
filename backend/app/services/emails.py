@@ -114,3 +114,49 @@ def pt_session_cancelled(
         ],
     )
     return Mail(to=to, subject=f"Buổi PT lúc {when} đã bị huỷ", text=text, html=html)
+
+
+def membership_expiring(
+    to: str, full_name: str | None, plan_name: str, end_label: str, days_left: int, link: str
+) -> Mail:
+    name = full_name or "bạn"
+    when = "trong 24 giờ tới" if days_left <= 1 else f"trong vòng {days_left} ngày"
+    text = (
+        f"Xin chào {name},\n\n"
+        f"Gói {plan_name} của bạn sẽ hết hạn {when} (lúc {end_label}).\n"
+        "Gia hạn ngay để không bị gián đoạn: thời hạn của gói mới được cộng nối tiếp, "
+        f"không mất ngày còn lại.\n\n{link}\n\n{_BRAND}"
+    )
+    html = _html(
+        "Gói tập sắp hết hạn",
+        [
+            f"Xin chào <b>{escape(name)}</b>,",
+            f"Gói <b>{escape(plan_name)}</b> sẽ hết hạn {escape(when)} "
+            f"(lúc <b>{escape(end_label)}</b>).",
+            "Gia hạn ngay để không bị gián đoạn: thời hạn gói mới được cộng nối tiếp, "
+            "không mất ngày còn lại.",
+        ],
+        ("Gia hạn ngay", link),
+    )
+    return Mail(to=to, subject=f"Gói {plan_name} sắp hết hạn", text=text, html=html)
+
+
+def membership_expired(
+    to: str, full_name: str | None, plan_name: str, end_label: str, link: str
+) -> Mail:
+    name = full_name or "bạn"
+    text = (
+        f"Xin chào {name},\n\n"
+        f"Gói {plan_name} của bạn đã hết hạn lúc {end_label}. Bạn tạm thời chưa check-in "
+        f"và đặt PT được.\nGia hạn tại: {link}\n\n{_BRAND}"
+    )
+    html = _html(
+        "Gói tập đã hết hạn",
+        [
+            f"Xin chào <b>{escape(name)}</b>,",
+            f"Gói <b>{escape(plan_name)}</b> đã hết hạn lúc <b>{escape(end_label)}</b>.",
+            "Bạn tạm thời chưa check-in và đặt PT được. Gia hạn để tiếp tục tập luyện.",
+        ],
+        ("Gia hạn ngay", link),
+    )
+    return Mail(to=to, subject=f"Gói {plan_name} đã hết hạn", text=text, html=html)

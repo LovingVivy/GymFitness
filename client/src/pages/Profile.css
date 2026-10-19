@@ -35,3 +35,11 @@
 .security-actions button:disabled{opacity:.6;cursor:wait}
 .security-actions .security-ghost{color:#ccc;background:transparent;border-color:var(--line)}
 @media (max-width:720px){.security-form{grid-template-columns:1fr}}
+
+/* Gói hết hạn / sắp hết hạn và gói khác đang dùng */
+.membership-expired{margin:18px 0 0;padding:12px 14px;color:#ffcc55;background:rgba(255,204,85,.06);border:1px solid rgba(255,204,85,.25);border-radius:12px;font-size:12px;line-height:1.6}
+.membership-others{display:grid;margin:18px 0 0;padding:0;gap:8px;list-style:none}
+.membership-others li{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px}
+.membership-others span{grid-row:span 2;align-self:center;padding:5px 9px;color:#090909;background:var(--accent);border-radius:999px;font-size:9px;font-weight:900;text-transform:uppercase}
+.membership-others strong{font-size:13px}
+.membership-others small{color:#888;font-size:11px}

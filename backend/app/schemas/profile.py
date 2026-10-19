@@ -90,6 +90,8 @@ class ProfileResponse(BaseModel):
     member_joined_at: UtcDateTime | None = None
     home_branch_name: str | None = None
     membership: MembershipSummary | None = None
+    # Mọi gói còn hiệu lực (tối đa một Gym và một Yoga), mới hết hạn sau cùng trước.
+    memberships: list[MembershipSummary] = Field(default_factory=list)
     pt_credits: PtCreditsSummary = PtCreditsSummary()
     created_at: UtcDateTime | None = None
     last_login_at: UtcDateTime | None = None

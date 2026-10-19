@@ -16,6 +16,7 @@ from app.core.logging import configure_logging, request_id_var
 from app.core.rate_limit import client_ip, rate_limit_middleware
 from app.db.session import SessionLocal, engine
 from app.services import admin as admin_service
+from app.tasks import maintenance
 
 settings = get_settings()
 configure_logging(settings.log_level, settings.json_logs)
@@ -51,7 +52,9 @@ def _serializable_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     _bootstrap_admin()
+    maintenance.start_background()
     yield
+    maintenance.stop_background()
     engine.dispose()
 
 

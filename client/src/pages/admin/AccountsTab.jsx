@@ -131,7 +131,7 @@ function UserForm({ initial, onSubmit, onClose, roles }) {
           <Field label="Trạng thái">
             <select value={form.status} onChange={set("status")}>
               <option value="ACTIVE">Hoạt động</option>
-              <option value="SUSPENDED">Tạm khoá (không đăng nhập được)</option>
+              <option value="SUSPENDED">Tạm khoá (không đăng nhập được, huỷ buổi PT sắp tới)</option>
               <option value="INACTIVE">Ngưng hoạt động</option>
             </select>
           </Field>
@@ -157,7 +157,7 @@ function UserForm({ initial, onSubmit, onClose, roles }) {
                 ))}
               </div>
             </Field>
-            <Field label="Giá mỗi buổi (đ)">
+            <Field label="Đơn giá tham khảo (đ)" hint="Chỉ để tính thù lao nội bộ. Hội viên trả theo giá lượt PT chung của phòng tập.">
               <input type="number" min="0" step="10000" value={form.hourly_rate} onChange={set("hourly_rate")} />
             </Field>
             <Field label="Giới thiệu" wide>
@@ -242,8 +242,12 @@ export default function AccountsTab({ notify, currentUserId, onChange, user: vie
 
   const save = async (payload) => {
     if (editing?.id) {
-      await updateUser(editing.id, payload);
-      notify("Đã cập nhật tài khoản.");
+      const updated = await updateUser(editing.id, payload);
+      notify(
+        updated.cancelled_sessions
+          ? `Đã cập nhật. ${updated.cancelled_sessions} buổi PT sắp tới đã được huỷ và hoàn lượt.`
+          : "Đã cập nhật tài khoản."
+      );
     } else {
       const created = await createUser(payload);
       notify(`Đã tạo tài khoản ${created.member_code || created.employee_code || created.email}.`);
@@ -325,7 +329,7 @@ export default function AccountsTab({ notify, currentUserId, onChange, user: vie
                       {user.role === "PT" ? (
                         <>
                           <span>{user.specialties.join(" · ") || "—"}</span>
-                          <small>{money(user.hourly_rate)}/buổi</small>
+                          <small>Đơn giá tham khảo {money(user.hourly_rate)}/buổi</small>
                           {user.has_schedule ? null : (
                             <small className="adm-warn">Chưa khai lịch làm việc nên hội viên chưa thấy PT này</small>
                           )}

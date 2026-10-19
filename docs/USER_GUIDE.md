@@ -16,7 +16,13 @@ Mục lục: [Hội viên](#1-hội-viên) · [Huấn luyện viên](#2-huấn-l
 ### 1.2. Lịch tập và hồ sơ
 
 - **Lịch tập** (`/schedule`): lịch theo tháng của gói đang dùng.
-- **Hồ sơ** (`/profile`): ảnh đại diện, gói hiện tại và số ngày còn lại, thông tin thể chất, bảo mật tài khoản.
+- **Hồ sơ** (`/profile`): ảnh đại diện, gói hiện tại và số ngày còn lại (có cả gói Gym lẫn Yoga thì hiện cả hai), thông tin thể chất, bảo mật tài khoản.
+
+### 1.2b. Gia hạn và hết hạn
+
+- Trước khi hết hạn 7, 3 và 1 ngày bạn nhận thông báo và email nhắc gia hạn.
+- Gia hạn sớm không mất ngày: gói mới được cộng nối tiếp sau ngày hết hạn hiện tại.
+- Gói hết hạn: hồ sơ hiện "Đã hết hạn", tạm thời không check-in và đặt PT được cho tới khi gia hạn.
 
 ### 1.3. Đặt buổi với huấn luyện viên
 
@@ -36,6 +42,7 @@ Mục lục: [Hội viên](#1-hội-viên) · [Huấn luyện viên](#2-huấn-l
    - Huỷ buổi trước giờ: bắt buộc nhập lý do, hội viên luôn được hoàn lượt.
    - Sau giờ bắt đầu: bấm **Hoàn thành** hoặc **Vắng mặt** để chốt buổi.
 3. Biểu tượng chuông hiển thị thông báo khi có hội viên đặt hoặc huỷ buổi.
+4. Buổi đã kết thúc quá 24 giờ mà chưa chốt sẽ được hệ thống tự ghi "Hoàn thành". Hội viên vắng mặt thì hãy chốt **Vắng mặt** trong vòng 24 giờ.
 
 ## 3. Quản lý (Manager)
 
@@ -57,7 +64,8 @@ huỷ giao dịch, xem nhật ký thao tác.
 
 Có mọi quyền của Quản lý, thêm:
 
-- **Tài khoản**: tạo PT (chọn chuyên môn, giá mỗi buổi), Quản lý, Quản trị; xoá mềm tài khoản (giữ lịch sử thanh toán).
+- **Tài khoản**: tạo PT (chọn chuyên môn, đơn giá tham khảo), Quản lý, Quản trị; xoá mềm tài khoản (giữ lịch sử thanh toán).
+  **Tạm khoá** PT hoặc hội viên sẽ tự huỷ các buổi PT chưa bắt đầu và hoàn lượt cho hội viên; xoá tài khoản chỉ được khi không còn buổi chưa kết thúc.
 - **Gói tập**: thêm, sửa giá/thời hạn, ngừng bán, xoá. Đổi giá chỉ áp dụng cho lượt mua mới.
 - **Thanh toán**: huỷ giao dịch đang chờ (gói và lượt PT kèm theo cũng bị huỷ).
 - **Nhật ký**: mọi thao tác ghi của quản trị — ai, lúc nào, dữ liệu **trước/sau**; lọc theo đối tượng, ngày; xuất file.

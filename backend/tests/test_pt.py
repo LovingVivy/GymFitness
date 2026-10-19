@@ -822,3 +822,114 @@ def test_trainer_cannot_book_as_member(gym_trainer) -> None:
     )
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "MEMBER_NOT_FOUND"
+
+
+# --------------------------------------------------------------------------
+# Lifecycle: stale sessions, suspended accounts, price
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture
+def staff_admin(db, purge) -> Iterator[dict]:
+    email = f"pytest.ptadmin.{uuid.uuid4().hex[:8]}@example.com"
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"full_name": "Admin PT test", "email": email, "password": "password123"},
+    )
+    assert response.status_code == 201, response.text
+    with db.cursor() as cursor:
+        cursor.execute("UPDATE users SET role = 'ADMIN' WHERE email = %s", (email,))
+    yield {"headers": {"Authorization": f"Bearer {response.json()['access_token']}"}}
+    purge(email)
+
+
+def _booking_status(db, booking_id: str) -> str:
+    with db.cursor() as cursor:
+        cursor.execute("SELECT status FROM pt_bookings WHERE id = %s", (booking_id,))
+        return cursor.fetchone()[0]
+
+
+def test_unclosed_past_session_is_completed_automatically(session, gym_trainer, db) -> None:
+    from app.tasks import maintenance
+
+    booking = _booked(session, gym_trainer)
+    # PT quên chốt: buổi đã kết thúc hơn 24 giờ.
+    _move_booking(db, booking["id"], timedelta(days=-2))
+    assert _wallet(session)["reserved"] == 1
+
+    assert maintenance.run_once().closed_sessions >= 1
+    assert _booking_status(db, booking["id"]) == "COMPLETED"
+    wallet = _wallet(session)
+    assert (wallet["reserved"], wallet["used"]) == (0, 1)
+
+    notes = client.get(NOTIFICATIONS_URL, headers=session["headers"]).json()["items"]
+    assert any(note["data"].get("auto_closed") for note in notes)
+
+
+def test_recent_unclosed_session_is_left_for_the_trainer(session, gym_trainer, db) -> None:
+    from app.tasks import maintenance
+
+    booking = _booked(session, gym_trainer)
+    _move_booking(db, booking["id"], timedelta(hours=-3))
+    maintenance.run_once()
+    assert _booking_status(db, booking["id"]) == "ACCEPTED"
+
+
+def test_suspending_a_trainer_cancels_upcoming_sessions(
+    session, gym_trainer, staff_admin, db
+) -> None:
+    booking = _booked(session, gym_trainer)
+    _move_booking(db, booking["id"], timedelta(days=2))
+    trainer_user = TRAINERS["GYM"]["user_id"]
+    try:
+        response = client.patch(
+            f"/api/v1/admin/users/{trainer_user}",
+            json={"status": "SUSPENDED"},
+            headers=staff_admin["headers"],
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["cancelled_sessions"] == 1
+
+        assert _booking_status(db, booking["id"]) == "CANCELLED"
+        assert _wallet(session)["available"] == 3
+
+        notes = client.get(NOTIFICATIONS_URL, headers=session["headers"]).json()["items"]
+        cancelled = [n for n in notes if n["notification_type"] == "PT_SESSION_CANCELLED"]
+        assert cancelled and "hoàn lại" in cancelled[0]["body"]
+
+        # PT bị khoá không còn giờ trống và không đặt được dù biết id.
+        assert _slots(session["headers"]) == []
+        future = (datetime.now(UTC) + timedelta(days=3)).replace(
+            hour=3, minute=0, second=0, microsecond=0
+        )
+        assert _book(session, future.isoformat()).status_code in (404, 409)
+    finally:
+        with db.cursor() as cursor:
+            cursor.execute("UPDATE users SET status = 'ACTIVE' WHERE id = %s", (trainer_user,))
+
+
+def test_suspending_a_member_cancels_their_sessions(session, gym_trainer, staff_admin, db) -> None:
+    booking = _booked(session, gym_trainer)
+    _move_booking(db, booking["id"], timedelta(days=2))
+    response = client.patch(
+        f"/api/v1/admin/users/{session['user']['id']}",
+        json={"status": "SUSPENDED"},
+        headers=staff_admin["headers"],
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["cancelled_sessions"] == 1
+    assert _booking_status(db, booking["id"]) == "CANCELLED"
+
+    trainer_notes = client.get(NOTIFICATIONS_URL, headers=gym_trainer).json()["items"]
+    assert any(n["notification_type"] == "PT_SESSION_CANCELLED" for n in trainer_notes)
+
+
+def test_pt_price_is_public_and_matches_the_charge(session) -> None:
+    price = client.get(f"{CREDITS_URL}/price")
+    assert price.status_code == 200
+    body = price.json()
+    assert body["session_minutes"] == 60
+    created = client.post(
+        f"{CREDITS_URL}/purchase", json={"quantity": 2}, headers=session["headers"]
+    ).json()
+    assert float(created["amount"]) == 2 * body["unit_price"]

@@ -151,6 +151,7 @@ def update_user(
     bio: str | None,
     specialties: list[str] | None,
     actor_id: str,
+    utc_offset_minutes: int = 420,
 ) -> ProcedureOutcome:
     rows = call(
         db,
@@ -166,9 +167,10 @@ def update_user(
             "p_bio": bio,
             "p_specialties": _json_or_none(specialties),
             "p_actor_id": actor_id,
+            "p_utc_offset_minutes": utc_offset_minutes,
         },
     )
-    return outcome_from(rows, "user_id")
+    return outcome_from(rows, "user_id", "cancelled_sessions")
 
 
 def set_password(

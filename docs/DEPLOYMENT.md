@@ -73,7 +73,7 @@ Khai báo ở GitHub → Settings → Secrets and variables → Actions. Thiếu
    ```
 
    ```bash
-   for f in 01_tables 02_triggers 03_procedures 04_seed 05_procedures_pt 06_procedures_payment 07_pt_schedule 08_admin 09_admin_shop 11_platform; do docker compose -f docker-compose.prod.yml exec -T mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' < database/$f.sql; done
+   for f in 01_tables 02_triggers 03_procedures 04_seed 05_procedures_pt 06_procedures_payment 07_pt_schedule 08_admin 09_admin_shop 11_platform 12_lifecycle; do docker compose -f docker-compose.prod.yml exec -T mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' < database/$f.sql; done
    ```
 
    Ứng dụng nên dùng tài khoản MySQL chỉ có quyền `SELECT, INSERT, UPDATE, DELETE, EXECUTE` trên `gymfitness.*`.

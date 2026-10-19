@@ -112,6 +112,14 @@ class PtCreditSummary(BaseModel):
     available: int = 0
 
 
+class PtPrice(BaseModel):
+    """Giá một lượt PT: mọi huấn luyện viên dùng chung một giá (cấu hình PT_SESSION_PRICE)."""
+
+    unit_price: int
+    currency: str = "VND"
+    session_minutes: int
+
+
 class PtCreditPurchaseRequest(BaseModel):
     quantity: int = Field(ge=1, le=100, description="Số buổi PT muốn mua")
 

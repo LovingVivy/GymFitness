@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { usePtPrice } from "../lib/usePtPrice";
 import SiteHeader from "../components/SiteHeader";
 import CurtainFooter from "../components/CurtainFooter";
 import PaymentCheckout from "../components/PaymentCheckout";
@@ -83,7 +84,6 @@ const yogaSchedule = [
   ["Cuối tuần", "Yin / phục hồi", "45–60 phút"]
 ];
 
-const PT_PRICE = 200000;
 
 const formatCurrency = (value) => new Intl.NumberFormat("vi-VN").format(value) + "đ";
 
@@ -101,6 +101,7 @@ const GOAL_CODES = {
 
 export default function PlanRegistration() {
   const user = useAuth();
+  const ptPrice = usePtPrice();
   const [selectedPlan, setSelectedPlan] = useState("GYM_YEARLY");
   const [ptSessions, setPtSessions] = useState(0);
   const [goal, setGoal] = useState("fitness");
@@ -145,7 +146,7 @@ export default function PlanRegistration() {
       setSelectedPlan(options[0].key);
     }
   }, [options, selectedPlan]);
-  const ptTotal = ptSessions * PT_PRICE;
+  const ptTotal = ptSessions * (ptPrice ?? 0);
   const total = plan.price + ptTotal;
 
   const submitRegistration = async (event) => {
@@ -154,6 +155,16 @@ export default function PlanRegistration() {
     if (!user) {
       localStorage.setItem("ironix_return_to", "/plans");
       navigateTo("/login");
+      return;
+    }
+
+    if (user.role !== "USER") {
+      setToast("Tài khoản nhân sự không mua gói hội viên. Hãy dùng tài khoản hội viên.");
+      return;
+    }
+
+    if (ptSessions > 0 && !ptPrice) {
+      setToast("Đang tải giá buổi PT, vui lòng thử lại sau giây lát.");
       return;
     }
 

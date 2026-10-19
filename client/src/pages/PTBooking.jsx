@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePtPrice } from "../lib/usePtPrice";
 import CurtainFooter from "../components/CurtainFooter";
 import PaymentCheckout from "../components/PaymentCheckout";
 import SiteHeader from "../components/SiteHeader";
@@ -25,7 +26,21 @@ import {
 } from "../lib/ptFormat";
 import "./PTBooking.css";
 
-const PT_PRICE = 200000;
+
+function StaffScreen({ role }) {
+  return (
+    <main className="ptb-page">
+      <SiteHeader />
+      <section className="ptb-locked">
+        <span>Personal training</span>
+        <h1>Trang này dành cho<br /><em>hội viên.</em></h1>
+        <p>Tài khoản {role === "PT" ? "huấn luyện viên" : "nhân sự"} không đặt buổi PT. Dùng khu làm việc của bạn.</p>
+        <a href={role === "PT" ? "/pt" : "/admin"}>{role === "PT" ? "Buổi dạy" : "Trang quản trị"} <b>→</b></a>
+      </section>
+      <CurtainFooter />
+    </main>
+  );
+}
 
 function LockedScreen() {
   return (
@@ -44,6 +59,7 @@ function LockedScreen() {
 
 export default function PTBooking() {
   const user = useAuth();
+  const ptPrice = usePtPrice();
   const [credits, setCredits] = useState({ purchased: 0, reserved: 0, used: 0, available: 0 });
   const [trainers, setTrainers] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -200,6 +216,7 @@ export default function PTBooking() {
   };
 
   if (!user) return <LockedScreen />;
+  if (user.role !== "USER") return <StaffScreen role={user.role} />;
 
   const needsCredit = credits.available < 1;
 
@@ -279,7 +296,7 @@ export default function PTBooking() {
                 />
               </label>
               <button type="button" onClick={() => startPurchase()} disabled={busy}>
-                {busy ? "Đang tạo mã QR…" : `Mua ${buyQuantity} buổi · ${money(buyQuantity * PT_PRICE)}`}
+                {busy ? "Đang tạo mã QR…" : `Mua ${buyQuantity} buổi · ${ptPrice ? money(buyQuantity * ptPrice) : "đang tải giá…"}`}
               </button>
             </div>
           </article>
@@ -341,7 +358,7 @@ export default function PTBooking() {
                       {busy
                         ? "Đang xử lý…"
                         : needsCredit
-                          ? `Mua ${buyQuantity} buổi & đặt giờ này · ${money(buyQuantity * PT_PRICE)}`
+                          ? `Mua ${buyQuantity} buổi & đặt giờ này · ${ptPrice ? money(buyQuantity * ptPrice) : "đang tải giá…"}`
                           : "Đặt buổi · dùng 1 lượt"}
                     </button>
                     {needsCredit ? <small>Bạn đã hết lượt. Sau khi thanh toán, giờ này sẽ được đặt tự động.</small> : null}
@@ -371,7 +388,7 @@ export default function PTBooking() {
                       {booking.notes ? <small>“{booking.notes}”</small> : null}
                       {booking.cancellation_reason ? (
                         <em className="ptb-reason">
-                          {booking.cancelled_by_role === "TRAINER" ? "PT huỷ" : "Bạn huỷ"}: {booking.cancellation_reason}
+                          {booking.cancelled_by_role === "TRAINER" ? "PT huỷ" : booking.cancelled_by_role === "ADMIN" ? "Phòng tập huỷ" : "Bạn huỷ"}: {booking.cancellation_reason}
                         </em>
                       ) : null}
                       {active && !started ? (

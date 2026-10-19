@@ -272,7 +272,9 @@ BEGIN
     m.status AS member_status,
     b.name AS home_branch_name,
     s.id AS subscription_id,
-    s.status AS subscription_status,
+    -- Gói quá hạn mà tác vụ định kỳ chưa kịp chuyển trạng thái vẫn hiện là EXPIRED.
+    CASE WHEN s.status = 'ACTIVE' AND s.end_at <= UTC_TIMESTAMP(6) THEN 'EXPIRED'
+         ELSE s.status END AS subscription_status,
     s.start_at AS subscription_start_at,
     s.end_at AS subscription_end_at,
     s.remaining_visits,
@@ -286,6 +288,13 @@ BEGIN
     pl.currency AS plan_currency,
     DATEDIFF(s.end_at, UTC_TIMESTAMP()) AS days_remaining,
     DATEDIFF(s.end_at, s.start_at) AS total_days,
+    -- Đầu chuỗi gói nối tiếp cùng loại hình (gia hạn sớm), để tính tổng thời hạn.
+    (SELECT MIN(s3.start_at)
+     FROM membership_subscriptions s3
+     JOIN membership_plans pl3 ON pl3.id = s3.plan_id
+     WHERE s3.member_id = m.id AND pl3.activity_type = pl.activity_type
+       AND s3.status IN ('ACTIVE', 'FROZEN') AND s3.deleted_at IS NULL
+       AND s3.end_at > UTC_TIMESTAMP(6)) AS coverage_start_at,
     COALESCE(pca.purchased_sessions, 0) AS pt_purchased,
     COALESCE(pca.reserved_sessions, 0) AS pt_reserved,
     COALESCE(pca.used_sessions, 0) AS pt_used,
@@ -299,12 +308,15 @@ BEGIN
   LEFT JOIN branches b ON b.id = m.home_branch_id
   LEFT JOIN pt_credit_accounts pca ON pca.member_id = m.id
   LEFT JOIN membership_subscriptions s ON s.id = (
+    -- Ưu tiên gói còn hiệu lực; không còn gói nào thì lấy gói hết hạn gần nhất
+    -- để giao diện hiện "Hết hạn" kèm nút gia hạn.
     SELECT s2.id
     FROM membership_subscriptions s2
     WHERE s2.member_id = m.id
-      AND s2.status IN ('ACTIVE', 'FROZEN')
+      AND s2.status IN ('ACTIVE', 'FROZEN', 'EXPIRED')
       AND s2.deleted_at IS NULL
-    ORDER BY s2.end_at DESC
+    ORDER BY (s2.status IN ('ACTIVE', 'FROZEN') AND s2.end_at > UTC_TIMESTAMP(6)) DESC,
+             s2.end_at DESC
     LIMIT 1
   )
   LEFT JOIN membership_plans pl ON pl.id = s.plan_id
@@ -561,6 +573,7 @@ END$$
 -- sp_subscription_mark_paid
 -- Backend xác nhận thanh toán: payment -> PAID, subscription -> ACTIVE,
 -- tính start_at/end_at theo thời hạn thật của gói (ADR-003) và ghi
+-- (gia hạn khi gói cùng loại hình còn hạn: gói mới bắt đầu từ ngày hết hạn đó, ADR-026)
 -- lịch sử trạng thái. Nếu payment kèm mua lượt PT (ADR-014) thì cộng
 -- lượt và ghi sổ cái trong cùng transaction.
 -- ============================================================
@@ -574,6 +587,9 @@ BEGIN
   DECLARE v_duration_months SMALLINT DEFAULT NULL;
   DECLARE v_duration_days SMALLINT DEFAULT NULL;
   DECLARE v_now DATETIME(6) DEFAULT NULL;
+  DECLARE v_start_at DATETIME(6) DEFAULT NULL;
+  DECLARE v_member_id CHAR(36) DEFAULT NULL;
+  DECLARE v_activity_type VARCHAR(12) DEFAULT NULL;
   DECLARE v_end_at DATETIME(6) DEFAULT NULL;
   DECLARE v_purchase_id CHAR(36) DEFAULT NULL;
   DECLARE v_account_id CHAR(36) DEFAULT NULL;
@@ -596,8 +612,9 @@ BEGIN
 
   START TRANSACTION;
 
-  SELECT pym.status, s.id, pl.duration_months, pl.duration_days
-  INTO v_payment_status, v_subscription_id, v_duration_months, v_duration_days
+  SELECT pym.status, s.id, pl.duration_months, pl.duration_days, s.member_id, pl.activity_type
+  INTO v_payment_status, v_subscription_id, v_duration_months, v_duration_days,
+       v_member_id, v_activity_type
   FROM payments pym
   JOIN membership_subscriptions s ON s.payment_id = pym.id
   JOIN membership_plans pl ON pl.id = s.plan_id
@@ -614,11 +631,22 @@ BEGIN
   ELSE
     SET v_now = UTC_TIMESTAMP(6);
 
+    -- Gia hạn sớm: nối tiếp sau gói cùng loại hình còn hạn để không mất ngày còn lại.
+    SELECT GREATEST(v_now, COALESCE(MAX(s.end_at), v_now)) INTO v_start_at
+    FROM membership_subscriptions s
+    JOIN membership_plans pl ON pl.id = s.plan_id
+    WHERE s.member_id = v_member_id
+      AND pl.activity_type = v_activity_type
+      AND s.id <> v_subscription_id
+      AND s.status IN ('ACTIVE', 'FROZEN')
+      AND s.deleted_at IS NULL
+      AND s.end_at > v_now;
+
     -- ADR-003: gói tháng/năm tính theo lịch tháng, không quy đổi ra số ngày.
     IF v_duration_months IS NOT NULL THEN
-      SET v_end_at = DATE_ADD(v_now, INTERVAL v_duration_months MONTH);
+      SET v_end_at = DATE_ADD(v_start_at, INTERVAL v_duration_months MONTH);
     ELSE
-      SET v_end_at = DATE_ADD(v_now, INTERVAL v_duration_days DAY);
+      SET v_end_at = DATE_ADD(v_start_at, INTERVAL v_duration_days DAY);
     END IF;
 
     UPDATE payments
@@ -629,7 +657,7 @@ BEGIN
 
     UPDATE membership_subscriptions
     SET status = 'ACTIVE',
-        start_at = v_now,
+        start_at = v_start_at,
         end_at = v_end_at,
         remaining_visits = NULL,
         row_version = row_version + 1
